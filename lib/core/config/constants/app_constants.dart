@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'https://stocklens.benethemmanuel.site/api';
+  static const String baseUrl = 'https://kodastock.kodatechnologies.co.tz/api';
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
 

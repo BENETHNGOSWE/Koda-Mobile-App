@@ -1,8 +1,8 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+
 import '../../data/models/auth/login_request_model.dart';
 import '../../data/models/auth/signup_request_model.dart';
 import '../../domain/entities/user_entity.dart';
@@ -39,7 +39,7 @@ class AuthState {
   }
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
-  
+
   @override
   String toString() {
     return 'AuthState(status: $status, user: ${user?.email}, isLoading: $isLoading, error: $errorMessage)';
@@ -60,12 +60,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
     required CheckAuthStatusUseCase checkAuthStatusUseCase,
-  })  : _loginUseCase = loginUseCase,
-        _registerUseCase = registerUseCase,
-        _logoutUseCase = logoutUseCase,
-        _getCurrentUserUseCase = getCurrentUserUseCase,
-        _checkAuthStatusUseCase = checkAuthStatusUseCase,
-        super(const AuthState());
+  }) : _loginUseCase = loginUseCase,
+       _registerUseCase = registerUseCase,
+       _logoutUseCase = logoutUseCase,
+       _getCurrentUserUseCase = getCurrentUserUseCase,
+       _checkAuthStatusUseCase = checkAuthStatusUseCase,
+       super(const AuthState());
 
   Future<void> checkAuthStatus() async {
     debugPrint('AuthNotifier: Checking auth status...');
@@ -74,7 +74,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final isLoggedIn = await _checkAuthStatusUseCase();
       debugPrint('AuthNotifier: isLoggedIn = $isLoggedIn');
-      
+
       if (isLoggedIn) {
         try {
           final user = await _getCurrentUserUseCase();
@@ -86,7 +86,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           );
         } catch (e) {
           debugPrint('AuthNotifier: Error getting user, but token exists');
-          // Token exists but couldn't get user - still authenticated
           state = state.copyWith(
             status: AuthStatus.authenticated,
             isLoading: false,
@@ -106,164 +105,154 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
     }
-    
+
     debugPrint('AuthNotifier: Final state = ${state.status}');
   }
 
-
-
 Future<bool> login({
-  required String email,
-  required String password,
-  bool rememberMe = false,
-}) async {
-  state = state.copyWith(isLoading: true, errorMessage: null);
+    required String phone,
+    required String password, // ← Changed from 'pin' to 'password'
+    bool rememberMe = false,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
-  try {
-    final request = LoginRequestModel(
-      email: email,
-      password: password,
-      rememberMe: rememberMe,
-    );
-
-    final response = await _loginUseCase(request);
-
-    // Use isSuccess helper instead of checking success field
-    if (response.isSuccess && response.user != null) {
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: response.user!.toEntity(),
-        isLoading: false,
+    try {
+      final request = LoginRequestModel(
+        phone: phone,
+        password: password, // ← Changed from 'pin' to 'password'
+        rememberMe: rememberMe,
       );
-      return true;
-    } else if (response.isSuccess) {
-      // Token exists but no user object - still successful
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        isLoading: false,
-      );
-      return true;
-    } else {
+
+      final response = await _loginUseCase(request);
+
+      if (response.isSuccess && response.user != null) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: response.user!.toEntity(),
+          isLoading: false,
+        );
+        return true;
+      } else if (response.isSuccess) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          isLoading: false,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: response.message ?? 'Login failed',
+          isLoading: false,
+        );
+        return false;
+      }
+    } on DioException catch (e) {
+      String errorMessage = 'An error occurred';
+
+      if (e.response?.statusCode == 401) {
+        errorMessage = 'Invalid phone number or PIN';
+      } else if (e.response?.statusCode == 422) {
+        final data = e.response?.data;
+        if (data is Map) {
+          final errors = data['errors'];
+          if (errors is Map && errors.isNotEmpty) {
+            final firstError = errors.values.first;
+            errorMessage = firstError is List
+                ? firstError[0]
+                : firstError.toString();
+          } else if (data['message'] != null) {
+            errorMessage = data['message'];
+          }
+        }
+      } else if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: response.message ?? 'Login failed',
+        errorMessage: errorMessage,
+        isLoading: false,
+      );
+      return false;
+    } catch (e) {
+      debugPrint('Login error: $e');
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: 'An unexpected error occurred',
         isLoading: false,
       );
       return false;
     }
-  } on DioException catch (e) {
-    String errorMessage = 'An error occurred';
-    
-    if (e.response?.statusCode == 401) {
-      errorMessage = 'Invalid email or password';
-    } else if (e.response?.statusCode == 422) {
-      final data = e.response?.data;
-      if (data is Map) {
-        final errors = data['errors'];
-        if (errors is Map && errors.isNotEmpty) {
-          final firstError = errors.values.first;
-          errorMessage = firstError is List ? firstError[0] : firstError.toString();
-        } else if (data['message'] != null) {
-          errorMessage = data['message'];
-        }
-      }
-    } else if (e.type == DioExceptionType.connectionError ||
-               e.type == DioExceptionType.connectionTimeout) {
-      errorMessage = 'Network error. Please check your connection.';
-    }
-
-    state = state.copyWith(
-      status: AuthStatus.error,
-      errorMessage: errorMessage,
-      isLoading: false,
-    );
-    return false;
-  } catch (e) {
-    debugPrint('Login error: $e');
-    state = state.copyWith(
-      status: AuthStatus.error,
-      errorMessage: 'An unexpected error occurred',
-      isLoading: false,
-    );
-    return false;
   }
-}
 
-Future<bool> register({
-  required String name,
-  required String email,
-  required String password,
-  required String passwordConfirmation,
-}) async {
-  state = state.copyWith(isLoading: true, errorMessage: null);
+  Future<bool> register({required String name, required String phone}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
-  try {
-    final request = SignupRequestModel(
-      name: name,
-      email: email,
-      password: password,
-      passwordConfirmation: passwordConfirmation,
-    );
+    try {
+      final request = SignupRequestModel(name: name, phone: phone);
 
-    final response = await _registerUseCase(request);
+      final response = await _registerUseCase(request);
 
-    // Use isSuccess helper
-    if (response.isSuccess && response.user != null) {
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: response.user!.toEntity(),
-        isLoading: false,
-      );
-      return true;
-    } else if (response.isSuccess) {
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        isLoading: false,
-      );
-      return true;
-    } else {
+      if (response.isSuccess && response.user != null) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: response.user!.toEntity(),
+          isLoading: false,
+        );
+        return true;
+      } else if (response.isSuccess) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          isLoading: false,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: response.message ?? 'Registration failed',
+          isLoading: false,
+        );
+        return false;
+      }
+    } on DioException catch (e) {
+      String errorMessage = 'An error occurred';
+
+      if (e.response?.statusCode == 422) {
+        final data = e.response?.data;
+        if (data is Map) {
+          final errors = data['errors'];
+          if (errors is Map && errors.isNotEmpty) {
+            final firstError = errors.values.first;
+            errorMessage = firstError is List
+                ? firstError[0]
+                : firstError.toString();
+          } else if (data['message'] != null) {
+            errorMessage = data['message'];
+          }
+        }
+      } else if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: response.message ?? 'Registration failed',
+        errorMessage: errorMessage,
+        isLoading: false,
+      );
+      return false;
+    } catch (e) {
+      debugPrint('Register error: $e');
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: 'An unexpected error occurred',
         isLoading: false,
       );
       return false;
     }
-  } on DioException catch (e) {
-    String errorMessage = 'An error occurred';
-    
-    if (e.response?.statusCode == 422) {
-      final data = e.response?.data;
-      if (data is Map) {
-        final errors = data['errors'];
-        if (errors is Map && errors.isNotEmpty) {
-          final firstError = errors.values.first;
-          errorMessage = firstError is List ? firstError[0] : firstError.toString();
-        } else if (data['message'] != null) {
-          errorMessage = data['message'];
-        }
-      }
-    } else if (e.type == DioExceptionType.connectionError ||
-               e.type == DioExceptionType.connectionTimeout) {
-      errorMessage = 'Network error. Please check your connection.';
-    }
-
-    state = state.copyWith(
-      status: AuthStatus.error,
-      errorMessage: errorMessage,
-      isLoading: false,
-    );
-    return false;
-  } catch (e) {
-    debugPrint('Register error: $e');
-    state = state.copyWith(
-      status: AuthStatus.error,
-      errorMessage: 'An unexpected error occurred',
-      isLoading: false,
-    );
-    return false;
   }
-}
+
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
 
@@ -279,8 +268,7 @@ Future<bool> register({
   void clearError() {
     state = state.copyWith(errorMessage: null);
   }
-  
-  // Set authenticated directly (useful for testing or manual state management)
+
   void setAuthenticated(UserEntity user) {
     state = state.copyWith(
       status: AuthStatus.authenticated,
@@ -288,7 +276,7 @@ Future<bool> register({
       isLoading: false,
     );
   }
-  
+
   void setUnauthenticated() {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

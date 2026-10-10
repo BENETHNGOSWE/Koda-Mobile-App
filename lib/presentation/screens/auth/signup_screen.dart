@@ -17,33 +17,32 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  
+  final _phoneController = TextEditingController();
+
   final _nameFocusNode = FocusNode();
-  final _emailFocusNode = FocusNode();
-  final _passwordFocusNode = FocusNode();
-  final _confirmPasswordFocusNode = FocusNode();
-  
+  final _phoneFocusNode = FocusNode();
+
   bool _acceptTerms = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
+    _phoneController.dispose();
     _nameFocusNode.dispose();
-    _emailFocusNode.dispose();
-    _passwordFocusNode.dispose();
-    _confirmPasswordFocusNode.dispose();
+    _phoneFocusNode.dispose();
     super.dispose();
+  }
+
+  // Phone validation matching the web version
+  bool _isValidPhone(String phone) {
+    final cleanPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    // Accepts: 0712345678, +255712345678, 255712345678
+    return RegExp(r'^(\+?255|0)\d{9}$').hasMatch(cleanPhone);
   }
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -54,17 +53,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
+    if (!_isValidPhone(_phoneController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid phone number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     ref.read(authProvider.notifier).clearError();
 
-    final success = await ref.read(authProvider.notifier).register(
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      passwordConfirmation: _confirmPasswordController.text,
-    );
+    final success = await ref
+        .read(authProvider.notifier)
+        .register(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+        );
 
     if (success && mounted) {
-      context.go('/dashboard');
+      // Go to login screen (matching web behavior)
+      context.go('/login');
     }
   }
 
@@ -78,33 +88,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return null;
   }
 
-  String? _validateEmail(String? value) {
+  String? _validatePhone(String? value) {
     if (value == null || value.isEmpty) {
-      return AppStrings.errorEmailRequired;
+      return 'Phone number is required';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return AppStrings.errorEmailInvalid;
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return AppStrings.errorPasswordRequired;
-    }
-    if (value.length < 6) {
-      return AppStrings.errorPasswordTooShort;
-    }
-    return null;
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
-    }
-    if (value != _passwordController.text) {
-      return AppStrings.errorPasswordMismatch;
+    if (!_isValidPhone(value)) {
+      return 'Please enter a valid phone number (e.g. 0712345678)';
     }
     return null;
   }
@@ -146,21 +135,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                 // Header
                 Text(
-                  'Create Account',
+                  'Create your account',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Fill in your details to get started',
+                  'Enter your phone number and we\'ll send you a PIN to get started',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Error Message
                 if (authState.errorMessage != null) ...[
                   Container(
@@ -193,7 +182,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                
+
                 // Name Field
                 AuthTextField(
                   controller: _nameController,
@@ -206,64 +195,95 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   enabled: !authState.isLoading,
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) {
-                    FocusScope.of(context).requestFocus(_emailFocusNode);
+                    FocusScope.of(context).requestFocus(_phoneFocusNode);
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
-                // Email Field
+
+                // Phone Number Field
                 AuthTextField(
-                  controller: _emailController,
-                  focusNode: _emailFocusNode,
-                  label: AppStrings.email,
-                  hint: 'Enter your email',
-                  prefixIcon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
-                  enabled: !authState.isLoading,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) {
-                    FocusScope.of(context).requestFocus(_passwordFocusNode);
-                  },
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Password Field
-                AuthTextField(
-                  controller: _passwordController,
-                  focusNode: _passwordFocusNode,
-                  label: AppStrings.password,
-                  hint: 'Create a password',
-                  prefixIcon: Icons.lock_outlined,
-                  isPassword: true,
-                  validator: _validatePassword,
-                  enabled: !authState.isLoading,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) {
-                    FocusScope.of(context).requestFocus(_confirmPasswordFocusNode);
-                  },
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Confirm Password Field
-                AuthTextField(
-                  controller: _confirmPasswordController,
-                  focusNode: _confirmPasswordFocusNode,
-                  label: AppStrings.confirmPassword,
-                  hint: 'Confirm your password',
-                  prefixIcon: Icons.lock_outlined,
-                  isPassword: true,
-                  validator: _validateConfirmPassword,
+                  controller: _phoneController,
+                  focusNode: _phoneFocusNode,
+                  label: 'Phone Number',
+                  hint: '0712 345 678',
+                  prefixIcon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                  validator: _validatePhone,
                   enabled: !authState.isLoading,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _handleSignup(),
                 ),
-                
-                const SizedBox(height: 16),
-                
+
+                const SizedBox(height: 8),
+
+                // Phone validation hint
+                ValueListenableBuilder(
+                  valueListenable: _phoneController,
+                  builder: (context, value, _) {
+                    final phone = value.text.trim();
+                    if (phone.isEmpty) return const SizedBox.shrink();
+
+                    final isValid = _isValidPhone(phone);
+                    return Text(
+                      isValid
+                          ? '✓ Valid phone number'
+                          : 'Please enter a valid phone number (e.g., 0712345678)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isValid ? Colors.green : Colors.red,
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // How it works info box
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'How it works',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '1. Enter your name and phone number\n2. You\'ll receive a 4-digit PIN via SMS\n3. Use your phone number and PIN to login',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
                 // Terms and Conditions
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,18 +328,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Signup Button
                 AuthButton(
-                  text: AppStrings.signUp,
+                  text: 'Send me my PIN',
                   onPressed: _handleSignup,
                   isLoading: authState.isLoading,
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Login Link
                 Center(
                   child: Row(
@@ -344,7 +364,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
               ],
             ),

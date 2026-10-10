@@ -658,25 +658,77 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildFinancialMetrics(BuildContext context) {
-    final metrics = _analysisData['analysis']['metrics'];
-    final perShare = metrics['per_share'];
-    final valuation = metrics['valuation'];
-    final profitability = metrics['profitability'];
-    final financialHealth = metrics['financial_health'];
-    final healthScore = _analysisData['analysis']['health_score'] ?? 0;
+    final metrics = _analysisData?['analysis']?['metrics'] ?? {};
+
+    // Safe access with null protection
+    final perShare = metrics['per_share'] ?? {};
+    final valuation = metrics['valuation'] ?? {};
+    final profitability = metrics['profitability'] ?? {};
+    final financialHealth = metrics['financial_health'] ?? {};
+
+    final healthScore = _analysisData?['analysis']?['health_score'] ?? 0;
 
     final metricItems = [
-      {'label': 'EPS', 'value': '${perShare['eps']?.toStringAsFixed(2) ?? 'N/A'}', 'color': Colors.blue},
-      {'label': 'P/B', 'value': '${valuation['pb_ratio']?.toStringAsFixed(2) ?? 'N/A'}', 'color': Colors.green},
-      {'label': 'PEG', 'value': valuation['peg_ratio']?.toString() ?? 'N/A', 'color': Colors.grey},
-      {'label': 'DY', 'value': '${valuation['dividend_yield']?.toStringAsFixed(2) ?? 'N/A'}%', 'color': Colors.teal},
-      {'label': 'ROE', 'value': '${profitability['roe']?.toStringAsFixed(2) ?? 'N/A'}%', 'color': Colors.blue},
-      {'label': 'ROA', 'value': '${profitability['roa']?.toStringAsFixed(2) ?? 'N/A'}%', 'color': Colors.green},
-      {'label': 'NPM', 'value': '${profitability['net_profit_margin']?.toStringAsFixed(2) ?? 'N/A'}%', 'color': Colors.teal},
-      {'label': 'GPM', 'value': '${profitability['gross_profit_margin']?.toStringAsFixed(2) ?? 'N/A'}%', 'color':Colors.red },
-      {'label': 'D/E', 'value': '${financialHealth['debt_to_equity']?.toStringAsFixed(2) ?? 'N/A'}', 'color': Colors.pink},
-      {'label': 'CR', 'value': '${financialHealth['current_ratio']?.toStringAsFixed(2) ?? 'N/A'}', 'color': Colors.red},
-      {'label': 'ICR', 'value': '${financialHealth['interest_coverage']?.toStringAsFixed(2) ?? 'N/A'}', 'color': Colors.orange},
+      {
+        'label': 'EPS',
+        'value': '${perShare['eps']?.toStringAsFixed(2) ?? 'N/A'}',
+        'color': Colors.blue,
+      },
+      {
+        'label': 'P/B',
+        'value': '${valuation['pb_ratio']?.toStringAsFixed(2) ?? 'N/A'}',
+        'color': Colors.green,
+      },
+      {
+        'label': 'PEG',
+        'value': valuation['peg_ratio']?.toString() ?? 'N/A',
+        'color': Colors.grey,
+      },
+      {
+        'label': 'DY',
+        'value': '${valuation['dividend_yield']?.toStringAsFixed(2) ?? 'N/A'}%',
+        'color': Colors.teal,
+      },
+      {
+        'label': 'ROE',
+        'value': '${profitability['roe']?.toStringAsFixed(2) ?? 'N/A'}%',
+        'color': Colors.blue,
+      },
+      {
+        'label': 'ROA',
+        'value': '${profitability['roa']?.toStringAsFixed(2) ?? 'N/A'}%',
+        'color': Colors.green,
+      },
+      {
+        'label': 'NPM',
+        'value':
+            '${profitability['net_profit_margin']?.toStringAsFixed(2) ?? 'N/A'}%',
+        'color': Colors.teal,
+      },
+      {
+        'label': 'GPM',
+        'value':
+            '${profitability['gross_profit_margin']?.toStringAsFixed(2) ?? 'N/A'}%',
+        'color': Colors.red,
+      },
+      {
+        'label': 'D/E',
+        'value':
+            '${financialHealth['debt_to_equity']?.toStringAsFixed(2) ?? 'N/A'}',
+        'color': Colors.pink,
+      },
+      {
+        'label': 'CR',
+        'value':
+            '${financialHealth['current_ratio']?.toStringAsFixed(2) ?? 'N/A'}',
+        'color': Colors.red,
+      },
+      {
+        'label': 'ICR',
+        'value':
+            '${financialHealth['interest_coverage']?.toStringAsFixed(2) ?? 'N/A'}',
+        'color': Colors.orange,
+      },
       {'label': 'Score', 'value': '$healthScore', 'color': Colors.purple},
     ];
 
@@ -685,10 +737,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       shadowColor: Colors.black.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: Colors.purple.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        side: BorderSide(color: Colors.purple.withValues(alpha: 0.3), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -710,23 +759,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             const SizedBox(height: 20),
             LayoutBuilder(
               builder: (context, constraints) {
-                // Determine number of columns based on available width
-                int crossAxisCount;
-                double childAspectRatio;
-
-                if (constraints.maxWidth < 600) {
-                  // Mobile: 2 columns
-                  crossAxisCount = 2;
-                  childAspectRatio = 1.5;
-                } else if (constraints.maxWidth < 900) {
-                  // Tablet: 3 columns
-                  crossAxisCount = 3;
-                  childAspectRatio = 1.3;
-                } else {
-                  // Desktop: 4 columns
-                  crossAxisCount = 4;
-                  childAspectRatio = 1.2;
-                }
+                int crossAxisCount = constraints.maxWidth < 600 ? 2 : 3;
+                if (constraints.maxWidth > 900) crossAxisCount = 4;
 
                 return GridView.builder(
                   shrinkWrap: true,
@@ -735,7 +769,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                     crossAxisCount: crossAxisCount,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: childAspectRatio,
+                    childAspectRatio: 1.4,
                   ),
                   itemCount: metricItems.length,
                   itemBuilder: (context, index) {

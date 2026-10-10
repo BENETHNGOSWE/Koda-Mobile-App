@@ -1,16 +1,17 @@
 import 'package:json_annotation/json_annotation.dart';
+
 part 'login_request_model.g.dart';
 
 @JsonSerializable()
 class LoginRequestModel {
-  final String email;
-  final String password;
+  final String phone;
+  final String password; // ← Changed from 'pin' to 'password'
   @JsonKey(name: 'remember_me', defaultValue: false)
   final bool rememberMe;
 
   const LoginRequestModel({
-    required this.email,
-    required this.password,
+    required this.phone,
+    required this.password, // ← Changed
     this.rememberMe = false,
   });
 

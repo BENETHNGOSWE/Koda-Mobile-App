@@ -13,7 +13,7 @@ class _StockApiService implements StockApiService {
     this._dio, {
     this.baseUrl,
   }) {
-    baseUrl ??= 'https://stocklens.benethemmanuel.site/api';
+    baseUrl ??= 'https://kodastock.kodatechnologies.co.tz/api';
   }
 
   final Dio _dio;

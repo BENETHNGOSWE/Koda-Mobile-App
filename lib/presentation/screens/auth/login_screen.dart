@@ -16,19 +16,28 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _emailFocusNode = FocusNode();
-  final _passwordFocusNode = FocusNode();
+  final _phoneController = TextEditingController();
+  final _pinController = TextEditingController();
+
+  final _phoneFocusNode = FocusNode();
+  final _pinFocusNode = FocusNode();
+
   bool _rememberMe = false;
+  bool _showPin = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _emailFocusNode.dispose();
-    _passwordFocusNode.dispose();
+    _phoneController.dispose();
+    _pinController.dispose();
+    _phoneFocusNode.dispose();
+    _pinFocusNode.dispose();
     super.dispose();
+  }
+
+  // Phone validation (same as web)
+  bool _isValidPhone(String phone) {
+    final cleanPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    return RegExp(r'^(\+?255|0)\d{9}$').hasMatch(cleanPhone);
   }
 
   Future<void> _handleLogin() async {
@@ -36,34 +45,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.read(authProvider.notifier).clearError();
 
-    final success = await ref.read(authProvider.notifier).login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      rememberMe: _rememberMe,
-    );
+    final success = await ref
+        .read(authProvider.notifier)
+        .login(
+          phone: _phoneController.text.trim(),
+          password: _pinController.text.trim(), // ← Changed from 'pin' to 'password'
+          rememberMe: _rememberMe,
+        );
 
     if (success && mounted) {
       context.go('/dashboard');
     }
   }
 
-  String? _validateEmail(String? value) {
+  String? _validatePhone(String? value) {
     if (value == null || value.isEmpty) {
-      return AppStrings.errorEmailRequired;
+      return 'Phone number is required';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return AppStrings.errorEmailInvalid;
+    if (!_isValidPhone(value)) {
+      return 'Please enter a valid phone number';
     }
     return null;
   }
 
-  String? _validatePassword(String? value) {
+  String? _validatePin(String? value) {
     if (value == null || value.isEmpty) {
-      return AppStrings.errorPasswordRequired;
+      return 'PIN is required';
     }
-    if (value.length < 6) {
-      return AppStrings.errorPasswordTooShort;
+    if (value.length < 4) {
+      return 'PIN must be 4 digits';
     }
     return null;
   }
@@ -86,41 +96,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 40),
-                  
-                  // Logo or App Name
+
+                  // Logo
                   Center(
-                    child: Column(
-                      children: [
-                        Image.asset(
-                          ref.watch(isDarkModeProvider)
-                              ? 'assets/images/white_logo.png'
-                              : 'assets/images/black_logo.png',
-                          height: 120,
-                          fit: BoxFit.contain,
-                        ),
-                      ],
+                    child: Image.asset(
+                      ref.watch(isDarkModeProvider)
+                          ? 'assets/images/white_logo.png'
+                          : 'assets/images/black_logo.png',
+                      height: 100,
+                      fit: BoxFit.contain,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 48),
-                  
-                  // Welcome Text
+
+                  // Header
                   Text(
-                    'Welcome Back!',
+                    'Welcome back',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Sign in to continue to your account',
+                    'Enter your phone number and PIN to continue',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // Error Message
                   if (authState.errorMessage != null) ...[
                     Container(
@@ -153,42 +159,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  
-                  // Email Field
+
+                  // Phone Number Field
                   AuthTextField(
-                    controller: _emailController,
-                    focusNode: _emailFocusNode,
-                    label: AppStrings.email,
-                    hint: 'Enter your email',
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: _validateEmail,
+                    controller: _phoneController,
+                    focusNode: _phoneFocusNode,
+                    label: 'Phone Number',
+                    hint: '0712 345 678',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    validator: _validatePhone,
                     enabled: !authState.isLoading,
                     textInputAction: TextInputAction.next,
                     onFieldSubmitted: (_) {
-                      FocusScope.of(context).requestFocus(_passwordFocusNode);
+                      FocusScope.of(context).requestFocus(_pinFocusNode);
                     },
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
-                  // Password Field
+
+                  // PIN Field
                   AuthTextField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocusNode,
-                    label: AppStrings.password,
-                    hint: 'Enter your password',
-                    prefixIcon: Icons.lock_outlined,
+                    controller: _pinController,
+                    focusNode: _pinFocusNode,
+                    label: 'PIN',
+                    hint: '••••',
+                    prefixIcon: Icons.lock_outline,
                     isPassword: true,
-                    validator: _validatePassword,
+                    validator: _validatePin,
                     enabled: !authState.isLoading,
                     textInputAction: TextInputAction.done,
+                    keyboardType: TextInputType.number,
                     onFieldSubmitted: (_) => _handleLogin(),
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
-                  // Remember Me & Forgot Password Row
+
+                  // Remember Me & Forgot PIN
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -214,30 +221,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: authState.isLoading
                             ? null
                             : () {
-                                // Navigate to forgot password
-                                context.push('/forgot-password');
+                                // TODO: Navigate to PIN reset screen
+                                context.push('/forgot-pin');
                               },
                         child: Text(
-                          AppStrings.forgotPassword,
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                          ),
+                          'Forgot PIN?',
+                          style: TextStyle(color: theme.colorScheme.primary),
                         ),
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Login Button
                   AuthButton(
-                    text: AppStrings.login,
+                    text: 'Sign In',
                     onPressed: _handleLogin,
                     isLoading: authState.isLoading,
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // Sign Up Link
                   Center(
                     child: Row(
