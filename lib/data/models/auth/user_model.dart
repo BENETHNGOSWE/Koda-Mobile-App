@@ -11,6 +11,7 @@ class UserModel {
   final String id;
 
   final String? email; // ← Made nullable (important!)
+  final String? phone; // Backend users log in with phone, not email
   final String name;
 
   @JsonKey(name: 'avatar_url')
@@ -32,6 +33,7 @@ class UserModel {
   const UserModel({
     required this.id,
     this.email, // ← Made nullable
+    this.phone,
     required this.name,
     this.avatarUrl,
     this.createdAt,
@@ -57,6 +59,7 @@ class UserModel {
     return UserEntity(
       id: id,
       email: email ?? '', // ← Handle null email
+      phone: phone ?? '',
       name: name,
       avatarUrl: avatarUrl,
       createdAt: createdAt,
@@ -68,6 +71,7 @@ class UserModel {
     return UserModel(
       id: entity.id,
       email: entity.email.isNotEmpty ? entity.email : null,
+      phone: entity.phone.isNotEmpty ? entity.phone : null,
       name: entity.name,
       avatarUrl: entity.avatarUrl,
       createdAt: entity.createdAt,

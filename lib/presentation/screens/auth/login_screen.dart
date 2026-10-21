@@ -221,8 +221,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: authState.isLoading
                             ? null
                             : () {
-                                // TODO: Navigate to PIN reset screen
-                                context.push('/forgot-pin');
+                                // The backend has no self-service PIN reset,
+                                // so there is no screen to navigate to.
+                                showDialog(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Forgot your PIN?'),
+                                    content: const Text(
+                                      'PIN resets are handled by Koda support. '
+                                      'Contact us at support@kodatechnologies.co.tz '
+                                      'with your registered phone number.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext),
+                                        child: const Text('OK'),
+                                      ),
+                                    ],
+                                  ),
+                                );
                               },
                         child: Text(
                           'Forgot PIN?',

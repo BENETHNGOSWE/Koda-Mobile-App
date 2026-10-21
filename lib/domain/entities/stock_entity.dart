@@ -126,6 +126,7 @@ class MarketSummaryEntity {
   final double totalVolume;
   final int gainers;
   final int losers;
+  final int unchanged;
 
   const MarketSummaryEntity({
     this.dseIndex = 0.0,
@@ -133,6 +134,7 @@ class MarketSummaryEntity {
     this.totalVolume = 0.0,
     this.gainers = 0,
     this.losers = 0,
+    this.unchanged = 0,
   });
 
   MarketSummaryEntity copyWith({

@@ -465,26 +465,34 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _buildSummaryRow(
               context,
-              'DSE Index',
-              marketSummary != null
-                  ? marketSummary.dseIndex.toStringAsFixed(2)
-                  : '0.00',
+              'Listed Stocks',
+              '${dashboard.totalStocks}',
             ),
             const SizedBox(height: 12),
             _buildSummaryRow(
               context,
-              'Market Cap',
-              marketSummary != null
-                  ? '${marketSummary.marketCap.toStringAsFixed(2)} TZS'
-                  : '0.00 TZS',
+              'Top Gainer',
+              dashboard.topGainer != null
+                  ? '${dashboard.topGainer.symbol}  ${dashboard.topGainer.changePercent >= 0 ? '+' : ''}${dashboard.topGainer.changePercent.toStringAsFixed(2)}%'
+                  : 'N/A',
+              color: Colors.green,
+            ),
+            const SizedBox(height: 12),
+            _buildSummaryRow(
+              context,
+              'Top Loser',
+              dashboard.topLoser != null
+                  ? '${dashboard.topLoser.symbol}  ${dashboard.topLoser.changePercent >= 0 ? '+' : ''}${dashboard.topLoser.changePercent.toStringAsFixed(2)}%'
+                  : 'N/A',
+              color: Colors.red,
             ),
             const SizedBox(height: 12),
             _buildSummaryRow(
               context,
               'Total Volume',
               marketSummary != null
-                  ? '${marketSummary.totalVolume.toStringAsFixed(1)}K'
-                  : '0.0K',
+                  ? _formatVolume(marketSummary.totalVolume)
+                  : 'N/A',
             ),
             const SizedBox(height: 12),
             Row(
@@ -497,7 +505,16 @@ class DashboardScreen extends ConsumerWidget {
                     color: Colors.green,
                   ),
                 ),
-                      const SizedBox(width: 12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildSummaryRow(
+                    context,
+                    'Unchanged',
+                    marketSummary != null ? '${marketSummary.unchanged}' : '0',
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildSummaryRow(
                     context,
@@ -512,6 +529,16 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _formatVolume(double volume) {
+    if (volume >= 1000000) {
+      return '${(volume / 1000000).toStringAsFixed(2)}M';
+    }
+    if (volume >= 1000) {
+      return '${(volume / 1000).toStringAsFixed(1)}K';
+    }
+    return volume.toStringAsFixed(0);
   }
 
   Widget _buildSummaryRow(
@@ -559,7 +586,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.go('/stocks'),
               child: Text('View All →'),
             ),
           ],
@@ -665,6 +692,9 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildRecentActivity(BuildContext context, dynamic dashboard) {
+    // Real activity from the backend (logins, stock views, simulations…).
+    final activityAsync = ref.watch(activityProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -685,27 +715,101 @@ class DashboardScreen extends ConsumerWidget {
               width: 1,
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.inbox_outlined,
-                  size: 48,
-                  color: context.colorScheme.onSurface.withOpacity(0.3),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No recent activity',
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    color: context.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ),
-              ],
+          child: activityAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
             ),
+            error: (_, __) => _buildEmptyActivity(context),
+            data: (activities) {
+              final items = activities.take(5).toList();
+              if (items.isEmpty) return _buildEmptyActivity(context);
+              return Column(
+                children: items.asMap().entries.map((entry) {
+                  final activity = entry.value;
+                  return Column(
+                    children: [
+                      if (entry.key > 0) const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(
+                          _activityIcon(activity['type']?.toString()),
+                          color: context.colorScheme.primary,
+                        ),
+                        title: Text(
+                          activity['title']?.toString() ?? 'Activity',
+                          style: context.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          activity['description']?.toString() ?? '',
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          activity['time']?.toString() ?? '',
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              );
+            },
           ),
         ),
       ],
+    );
+  }
+
+  IconData _activityIcon(String? type) {
+    switch (type) {
+      case 'login':
+        return Icons.login;
+      case 'logout':
+        return Icons.logout;
+      case 'stock_view':
+        return Icons.visibility;
+      case 'analysis':
+        return Icons.analytics;
+      case 'comparison':
+        return Icons.compare_arrows;
+      case 'simulation':
+        return Icons.play_arrow;
+      case 'watchlist_add':
+      case 'watchlist_remove':
+        return Icons.bookmark;
+      default:
+        return Icons.history;
+    }
+  }
+
+  Widget _buildEmptyActivity(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 48,
+            color: context.colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No recent activity',
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

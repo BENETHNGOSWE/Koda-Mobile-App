@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/config/theme/theme_provider.dart';
+import '../../providers/app_providers.dart';
 
+/// Activity feed. The backend has no push-notification store, so this shows
+/// the user's real recorded activity (logins, stock views, simulations,
+/// comparisons…) from GET /user/activities.
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -12,46 +16,13 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-  // Dummy notifications data - replace with real API call later
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'id': 1,
-      'title': 'Stock Alert',
-      'message': 'TBL stock price increased by 5.2%',
-      'time': '2 hours ago',
-      'type': 'price_alert',
-      'isRead': false,
-    },
-    {
-      'id': 2,
-      'title': 'Market Update',
-      'message': 'DSE market closed with positive gains',
-      'time': '5 hours ago',
-      'type': 'market_update',
-      'isRead': false,
-    },
-    {
-      'id': 3,
-      'title': 'Analysis Ready',
-      'message': 'Your stock analysis for CRDB is ready',
-      'time': '1 day ago',
-      'type': 'analysis',
-      'isRead': true,
-    },
-    {
-      'id': 4,
-      'title': 'Watchlist Alert',
-      'message': 'NMB stock reached your target price',
-      'time': '2 days ago',
-      'type': 'watchlist',
-      'isRead': true,
-    },
-  ];
+  /// Items dismissed locally during this session.
+  final Set<String> _dismissedIds = {};
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = ref.watch(isDarkModeProvider);
-    final unreadCount = _notifications.where((n) => !n['isRead']).length;
+    final activityAsync = ref.watch(activityProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -59,9 +30,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Notifications'),
-            if (unreadCount > 0)
+            if (activityAsync.value != null)
               Text(
-                '$unreadCount unread',
+                '${activityAsync.value!.length} recent activities',
                 style: context.textTheme.bodySmall?.copyWith(
                   color: context.colorScheme.primary,
                 ),
@@ -83,24 +54,35 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               ref.read(themeModeProvider.notifier).toggleTheme();
             },
           ),
-          // Mark all as read
-          if (unreadCount > 0)
-            IconButton(
-              icon: const Icon(Icons.done_all),
-              tooltip: 'Mark all as read',
-              onPressed: _markAllAsRead,
-            ),
+          // Pull fresh activity from the server
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: () => ref.invalidate(activityProvider),
+          ),
         ],
       ),
-      body: _notifications.isEmpty
-          ? _buildEmptyState(context)
-          : ListView.builder(
-              itemCount: _notifications.length,
+      body: activityAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => _buildEmptyState(context),
+        data: (activities) {
+          final visible = activities
+              .where((a) => !_dismissedIds.contains(a['id']?.toString()))
+              .toList();
+          if (visible.isEmpty) return _buildEmptyState(context);
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(activityProvider),
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: visible.length,
               itemBuilder: (context, index) {
-                final notification = _notifications[index];
-                return _buildNotificationItem(context, notification, index);
+                final activity = visible[index];
+                return _buildActivityItem(context, activity);
               },
             ),
+          );
+        },
+      ),
     );
   }
 
@@ -123,7 +105,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'You\'re all caught up!',
+            'Your recent account activity will show up here.',
             style: context.textTheme.bodyMedium?.copyWith(
               color: context.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
@@ -133,16 +115,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationItem(
-    BuildContext context,
-    Map<String, dynamic> notification,
-    int index,
-  ) {
-    final isRead = notification['isRead'] as bool;
-    final type = notification['type'] as String;
+  Widget _buildActivityItem(BuildContext context, Map<String, dynamic> activity) {
+    final type = activity['type']?.toString() ?? 'activity';
+    final id = activity['id']?.toString() ?? 'activity';
 
     return Dismissible(
-      key: Key(notification['id'].toString()),
+      key: ValueKey(id),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -152,177 +130,108 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ),
       onDismissed: (direction) {
         setState(() {
-          _notifications.removeAt(index);
+          _dismissedIds.add(id);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Notification deleted'),
-            action: SnackBarAction(
-              label: 'UNDO',
-              onPressed: () {
-                setState(() {
-                  _notifications.insert(index, notification);
-                });
-              },
+      },
+      child: Container(
+        color: context.colorScheme.primary.withValues(alpha: 0.04),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          leading: CircleAvatar(
+            backgroundColor: _getActivityColor(type).withValues(alpha: 0.1),
+            child: Icon(
+              _getActivityIcon(type),
+              color: _getActivityColor(type),
+              size: 24,
             ),
           ),
-        );
-      },
-      child: InkWell(
-        onTap: () => _markAsRead(index),
-        child: Container(
-          color: isRead
-              ? null
-              : context.colorScheme.primary.withValues(alpha: 0.05),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            leading: CircleAvatar(
-              backgroundColor: _getNotificationColor(type).withValues(alpha: 0.1),
-              child: Icon(
-                _getNotificationIcon(type),
-                color: _getNotificationColor(type),
-                size: 24,
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  activity['title']?.toString() ?? 'Activity',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    notification['title'] as String,
-                    style: context.textTheme.titleMedium?.copyWith(
-                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                    ),
-                  ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: context.colorScheme.primary,
+                  shape: BoxShape.circle,
                 ),
-                if (!isRead)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: context.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  notification['message'] as String,
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    color: context.colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
+              ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                activity['description']?.toString() ?? '',
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  notification['time'] as String,
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: context.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                activity['time']?.toString() ?? '',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-              ],
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: () => _showNotificationOptions(context, index),
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  IconData _getNotificationIcon(String type) {
+  IconData _getActivityIcon(String type) {
     switch (type) {
-      case 'price_alert':
-        return Icons.trending_up;
-      case 'market_update':
-        return Icons.bar_chart;
+      case 'login':
+        return Icons.login;
+      case 'logout':
+        return Icons.logout;
+      case 'stock_view':
+        return Icons.visibility;
       case 'analysis':
         return Icons.analytics;
-      case 'watchlist':
+      case 'comparison':
+        return Icons.compare_arrows;
+      case 'simulation':
+        return Icons.play_arrow;
+      case 'watchlist_add':
+      case 'watchlist_remove':
         return Icons.bookmark;
       default:
         return Icons.notifications;
     }
   }
 
-  Color _getNotificationColor(String type) {
+  Color _getActivityColor(String type) {
     switch (type) {
-      case 'price_alert':
-        return Colors.green;
-      case 'market_update':
+      case 'login':
+      case 'logout':
         return Colors.blue;
+      case 'stock_view':
+        return Colors.green;
       case 'analysis':
         return Colors.purple;
-      case 'watchlist':
+      case 'comparison':
+        return Colors.teal;
+      case 'simulation':
         return Colors.orange;
+      case 'watchlist_add':
+      case 'watchlist_remove':
+        return Colors.amber;
       default:
         return Colors.grey;
     }
-  }
-
-  void _markAsRead(int index) {
-    setState(() {
-      _notifications[index]['isRead'] = true;
-    });
-  }
-
-  void _markAllAsRead() {
-    setState(() {
-      for (var notification in _notifications) {
-        notification['isRead'] = true;
-      }
-    });
-  }
-
-  void _showNotificationOptions(BuildContext context, int index) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.check),
-              title: const Text('Mark as read'),
-              onTap: () {
-                Navigator.pop(context);
-                _markAsRead(index);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Delete'),
-              onTap: () {
-                Navigator.pop(context);
-                final notification = _notifications[index];
-                setState(() {
-                  _notifications.removeAt(index);
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Notification deleted'),
-                    action: SnackBarAction(
-                      label: 'UNDO',
-                      onPressed: () {
-                        setState(() {
-                          _notifications.insert(index, notification);
-                        });
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

@@ -14,8 +14,68 @@ class StocksScreen extends ConsumerStatefulWidget {
 }
 
 class _StocksScreenState extends ConsumerState<StocksScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   String? selectedSector;
   String selectedSort = 'Symbol';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Sectors actually present in the loaded data, so the filter never shows
+  /// options that match nothing.
+  List<String> _availableSectors(List<StockEntity> stocks) {
+    final sectors = stocks
+        .map((s) => s.sector)
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return sectors;
+  }
+
+  /// Apply search + sector filter + sort on the client. The API does not
+  /// support these parameters, so doing it locally is the only way they
+  /// work at all.
+  List<StockEntity> _applyFilters(List<StockEntity> stocks) {
+    var result = stocks;
+
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result.where((s) =>
+              s.symbol.toLowerCase().contains(query) ||
+              s.name.toLowerCase().contains(query))
+          .toList();
+    }
+
+    if (selectedSector != null && selectedSector!.isNotEmpty) {
+      result = result
+          .where((s) =>
+              s.sector != null && s.sector!.toLowerCase() == selectedSector!.toLowerCase())
+          .toList();
+    }
+
+    switch (selectedSort) {
+      case 'Price':
+        result = List.of(result)..sort((a, b) => b.currentPrice.compareTo(a.currentPrice));
+        break;
+      case 'Change':
+        result = List.of(result)
+          ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
+        break;
+      case 'Volume':
+        result = List.of(result)..sort((a, b) => b.volume.compareTo(a.volume));
+        break;
+      default:
+        result = List.of(result)..sort((a, b) => a.symbol.compareTo(b.symbol));
+    }
+
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +101,19 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
               children: [
                 Expanded(
                   child: TextField(
+                    controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Search stocks...',
                       prefixIcon: Icon(Icons.search),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
@@ -53,7 +123,7 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
                       ),
                     ),
                     onChanged: (value) {
-                      // Implement search
+                      setState(() => _searchQuery = value);
                     },
                   ),
                 ),
@@ -68,9 +138,24 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
                   },
                   itemBuilder: (context) => [
                     PopupMenuItem(value: 'All', child: Text('All Sectors')),
-                    PopupMenuItem(value: 'Banking', child: Text('Banking')),
-                    PopupMenuItem(value: 'Energy', child: Text('Energy')),
-                    PopupMenuItem(value: 'Telecom', child: Text('Telecom')),
+                    if (stocksAsync.value != null)
+                      ..._availableSectors(stocksAsync.value!).map((sector) {
+                        final selected = selectedSector == sector;
+                        return PopupMenuItem(
+                          value: sector,
+                          child: Row(
+                            children: [
+                              Icon(
+                                selected ? Icons.check : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: context.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(sector),
+                            ],
+                          ),
+                        );
+                      }),
                   ],
                 ),
                 PopupMenuButton<String>(
@@ -102,7 +187,9 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
   }
 
   Widget _buildStocksList(BuildContext context, List<StockEntity> stocks) {
-    if (stocks.isEmpty) {
+    final filtered = _applyFilters(stocks);
+
+    if (filtered.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -114,9 +201,24 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No stocks found',
+              _searchQuery.isNotEmpty || selectedSector != null
+                  ? 'No stocks match your filter'
+                  : 'No stocks found',
               style: context.textTheme.titleMedium,
             ),
+            if (_searchQuery.isNotEmpty || selectedSector != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    selectedSector = null;
+                  });
+                },
+                child: const Text('Clear filters'),
+              ),
+            ],
           ],
         ),
       );
@@ -134,15 +236,15 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'TOTAL STOCKS',
+                  'SHOWING',
                   style: context.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: context.colorScheme.onSurface.withOpacity(0.6),
+                    color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 Text(
-                  stocks.length.toString(),
-                  style: context.textTheme.headlineMedium?.copyWith(
+                  '${filtered.length} of ${stocks.length}',
+                  style: context.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -150,12 +252,12 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
                   'GAINERS',
                   style: context.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: context.colorScheme.onSurface.withOpacity(0.6),
+                    color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 Text(
-                  stocks.where((s) => s.isGainer).length.toString(),
-                  style: context.textTheme.headlineMedium?.copyWith(
+                  filtered.where((s) => s.isGainer).length.toString(),
+                  style: context.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
                   ),
@@ -164,12 +266,12 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
                   'LOSERS',
                   style: context.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: context.colorScheme.onSurface.withOpacity(0.6),
+                    color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 Text(
-                  stocks.where((s) => s.isLoser).length.toString(),
-                  style: context.textTheme.headlineMedium?.copyWith(
+                  filtered.where((s) => s.isLoser).length.toString(),
+                  style: context.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.red,
                   ),
@@ -180,9 +282,9 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: stocks.length,
+              itemCount: filtered.length,
               itemBuilder: (context, index) {
-                final stock = stocks[index];
+                final stock = filtered[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: StockCard(

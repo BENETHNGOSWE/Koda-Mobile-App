@@ -43,21 +43,28 @@ class ProfileScreen extends ConsumerWidget {
                     label: 'Full Name',
                     value: user.name,
                   ),
-                  _buildInfoTile(
-                    context,
-                    icon: Icons.email_outlined,
-                    label: 'Email',
-                    value: user.email,
-                  ),
-                  _buildInfoTile(
-                    context,
-                    icon: Icons.verified_user_outlined,
-                    label: 'Account Status',
-                    value: user.isVerified ? 'Verified' : 'Not Verified',
-                    valueColor: user.isVerified
-                      ? const Color(AppColors.successColor)
-                      : const Color(AppColors.warningColor),
-                  ),
+                  if (user.phone.isNotEmpty)
+                    _buildInfoTile(
+                      context,
+                      icon: Icons.phone_outlined,
+                      label: 'Phone',
+                      value: user.phone,
+                    ),
+                  if (user.email.isNotEmpty)
+                    _buildInfoTile(
+                      context,
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: user.email,
+                    ),
+                  if (user.createdAt != null)
+                    _buildInfoTile(
+                      context,
+                      icon: Icons.calendar_month_outlined,
+                      label: 'Member Since',
+                      value:
+                          '${user.createdAt!.day} ${const ['January','February','March','April','May','June','July','August','September','October','November','December'][user.createdAt!.month - 1]} ${user.createdAt!.year}',
+                    ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -83,19 +90,15 @@ class ProfileScreen extends ConsumerWidget {
                     context,
                     icon: Icons.notifications_outlined,
                     title: 'Notifications',
-                    subtitle: 'Manage notification preferences',
-                    onTap: () {
-                      // TODO: Navigate to notifications settings
-                    },
+                    subtitle: 'View recent activity',
+                    onTap: () => context.push('/notifications'),
                   ),
                   _buildSettingTile(
                     context,
                     icon: Icons.security_outlined,
                     title: 'Security',
-                    subtitle: 'Change password & security settings',
-                    onTap: () {
-                      // TODO: Navigate to security settings
-                    },
+                    subtitle: 'Change PIN & security settings',
+                    onTap: () => _comingSoon(context, 'Security settings'),
                   ),
                 ],
               ),
@@ -116,17 +119,13 @@ class ProfileScreen extends ConsumerWidget {
                     context,
                     icon: Icons.description_outlined,
                     title: 'Terms & Conditions',
-                    onTap: () {
-                      // TODO: Navigate to terms
-                    },
+                    onTap: () => _comingSoon(context, 'Terms & Conditions'),
                   ),
                   _buildSettingTile(
                     context,
                     icon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
-                    onTap: () {
-                      // TODO: Navigate to privacy policy
-                    },
+                    onTap: () => _comingSoon(context, 'Privacy Policy'),
                   ),
                 ],
               ),
@@ -177,11 +176,23 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _comingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature is coming soon.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Widget _buildProfileHeader(BuildContext context, user) {
     final nameParts = user.name.split(' ');
     final initials = nameParts.length > 1
         ? '${nameParts[0][0]}${nameParts[1][0]}'
         : nameParts[0].substring(0, 2);
+
+    // Phone is the login identifier; email is optional on this backend.
+    final subline = user.phone.isNotEmpty ? user.phone : (user.email.isNotEmpty ? user.email : '');
 
     return Column(
       children: [
@@ -203,13 +214,15 @@ class ProfileScreen extends ConsumerWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          user.email,
-          style: context.textTheme.bodyMedium?.copyWith(
-            color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+        if (subline.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            subline,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

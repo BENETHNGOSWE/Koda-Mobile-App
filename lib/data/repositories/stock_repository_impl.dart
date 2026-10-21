@@ -46,17 +46,10 @@ class StockRepositoryImpl implements StockRepository {
     int? limit,
   }) async {
     try {
-      // Check cache
-      final cacheKey = 'stocks_${sector ?? 'all'}_${page ?? 1}';
-      final cached = _localStorage.getCache(cacheKey);
-      if (cached != null && cached['items'] != null) {
-        final items = (cached['items'] as List)
-            .map((json) => StockModel.fromJson(json).toEntity())
-            .toList();
-        return Right(items);
-      }
-
-      // Fetch from API - now returns StocksListResponse
+      // NOTE: no cache read here on purpose. The list carries live prices,
+      // so serving a cached copy (even a 5 minute old one) made
+      // pull-to-refresh appear broken. The response is small (28 rows),
+      // so always fetching is cheap and correct.
       final response = await _apiService.getStocksList(
         sector: sector,
         page: page,
@@ -65,12 +58,6 @@ class StockRepositoryImpl implements StockRepository {
 
       // Extract stocks from the wrapper
       final stocks = response.stocks;
-
-      // Save to cache
-      await _localStorage.saveCache(
-        cacheKey,
-        {'items': stocks.map((s) => s.toJson()).toList()},
-      );
 
       return Right(stocks.map((s) => s.toEntity()).toList());
     } on DioException catch (e) {

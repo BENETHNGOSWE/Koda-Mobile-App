@@ -86,18 +86,26 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
 
     try {
       final dio = ref.read(dioProvider);
+      final stockId = int.tryParse(selectedStockId!);
+      final targetPrice = double.tryParse(targetPriceController.text);
+      if (stockId == null || targetPrice == null) {
+        setState(() => errorMsg = 'Please enter a valid target price');
+        return;
+      }
+
       final response = await dio.post(
         '/alerts',
         data: {
-          // ← Fixed
-          'stock_id': selectedStockId,
-          'target_price': double.parse(targetPriceController.text),
+          'stock_id': stockId,
+          'target_price': targetPrice,
           'condition': condition,
         },
       );
 
       setState(() {
-        successMsg = response.data['message'] ?? 'Alert created successfully!';
+        successMsg = response.data is Map
+            ? (response.data['message']?.toString() ?? 'Alert created successfully!')
+            : 'Alert created successfully!';
         selectedStockId = null;
         targetPriceController.clear();
         condition = 'above';
@@ -106,11 +114,26 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
       await _loadAlerts();
     } catch (e) {
       setState(() {
-        errorMsg = 'Failed to create alert';
+        errorMsg = 'Failed to create alert: ${_extractError(e)}';
       });
     } finally {
       setState(() => isCreating = false);
     }
+  }
+
+  String _extractError(dynamic e) {
+    try {
+      final data = e.response?.data;
+      if (data is Map) {
+        if (data['message'] is String) return data['message'] as String;
+        final errors = data['errors'];
+        if (errors is Map && errors.isNotEmpty) {
+          final first = errors.values.first;
+          return first is List && first.isNotEmpty ? first.first.toString() : first.toString();
+        }
+      }
+    } catch (_) {}
+    return 'please try again';
   }
 
   Future<void> _cancelAlert(dynamic alertId) async {
@@ -136,10 +159,11 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
 
     try {
       final dio = ref.read(dioProvider);
-      await dio.delete('/alerts/$alertId'); // ← Fixed
+      await dio.delete('/alerts/$alertId');
+      setState(() => successMsg = 'Alert cancelled');
       await _loadAlerts();
     } catch (e) {
-      setState(() => errorMsg = 'Failed to cancel alert');
+      setState(() => errorMsg = 'Failed to cancel alert: ${_extractError(e)}');
     }
   }
 

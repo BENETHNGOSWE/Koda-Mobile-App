@@ -19,7 +19,57 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   List<Map<String, dynamic>> availablePeriods = [];
   bool _isLoadingPeriods = false;
   bool _isAnalyzing = false;
+  bool _noFinancialData = false;
   dynamic _analysisData;
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Safe numeric access. The API serialises decimal columns as strings
+  // (e.g. "277.43"), so calling toStringAsFixed() / comparing them as
+  // numbers used to throw. These helpers normalise num/String/null.
+  // ─────────────────────────────────────────────────────────────────────
+  double? _num(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  String _fmt(dynamic value, {int decimals = 2, String suffix = ''}) {
+    final n = _num(value);
+    if (n == null) return 'N/A';
+    return n.toStringAsFixed(decimals) + suffix;
+  }
+
+  /// Human-readable description of the reporting period, including whether
+  /// figures are annualised estimates.
+  String _periodDescription(Map<String, dynamic> data) {
+    final period = data['financial_period'];
+    if (period is! Map) return '';
+
+    final fiscalYear = period['fiscal_year']?.toString() ?? '';
+    final periodCode = (period['period']?.toString() ?? '').toUpperCase();
+    final isCumulative = period['is_cumulative'] == true;
+
+    String label;
+    if (periodCode == 'FY' || periodCode == 'ANNUAL' || periodCode.isEmpty) {
+      label = 'Full Year $fiscalYear';
+    } else {
+      label = '$periodCode $fiscalYear';
+    }
+
+    final meta = data['analysis'] is Map
+        ? (data['analysis'] as Map)['_meta']
+        : null;
+    final isQuarterly = meta is Map ? meta['is_quarterly'] == true : false;
+    final factor = meta is Map ? _num(meta['annualization_factor']) : null;
+
+    if (!isQuarterly || isCumulative) {
+      return '$label — figures as reported';
+    }
+    if (factor != null && (factor - 1.0).abs() > 0.001) {
+      return '$label — single quarter, income figures annualised ×${factor.toStringAsFixed(0)} (estimates)';
+    }
+    return '$label — single quarter';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +151,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                       selectedStock = stock;
                       selectedPeriod = null;
                       availablePeriods = [];
+                      _noFinancialData = false;
                       _analysisData = null;
                     });
                     if (stock != null && stock.id != null) {
@@ -153,12 +204,37 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 items: availablePeriods.map((period) {
                   return DropdownMenuItem(
                     value: period,
-                    child: Text(period['label'] ?? ''),
+                    child: Text(period['label']?.toString() ?? ''),
                   );
                 }).toList(),
                 onChanged: (period) {
                   setState(() => selectedPeriod = period);
                 },
+              )
+            else if (_noFinancialData)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange[700]),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'No financial data has been published for this stock '
+                        'yet, so analysis is not available.',
+                        style: TextStyle(color: Colors.orange[900]),
+                      ),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -178,13 +254,19 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       );
 
       if (mounted) {
-        final periods = (response.data['data']['periods'] as List<dynamic>)
-            .map((p) => p as Map<String, dynamic>)
+        final raw = response.data;
+        final periodsRaw =
+            raw is Map ? (raw['data'] is Map ? raw['data']['periods'] : null) : null;
+        final periods = (periodsRaw is List
+                ? periodsRaw
+                : <dynamic>[])
+            .whereType<Map<String, dynamic>>()
             .toList();
 
         setState(() {
           availablePeriods = periods;
           selectedPeriod = periods.isNotEmpty ? periods.first : null;
+          _noFinancialData = periods.isEmpty;
           _isLoadingPeriods = false;
         });
       }
@@ -195,12 +277,27 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load periods: ${e.toString()}'),
+            content: Text('Failed to load periods: ${_extractError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
+  }
+
+  /// Pull a human-readable message out of a DioException / server error.
+  String _extractError(dynamic e) {
+    try {
+      final message = e.message;
+      if (message is String && message.isNotEmpty) {
+        final data = e.response?.data;
+        if (data is Map && data['message'] is String) {
+          return data['message'] as String;
+        }
+        return message;
+      }
+    } catch (_) {}
+    return 'Something went wrong';
   }
 
   Widget _buildAnalyzeButton(BuildContext context) {
@@ -264,7 +361,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to analyze stock: ${e.toString()}'),
+            content: Text('Failed to analyze stock: ${_extractError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -273,11 +370,15 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildAnalysisResults(BuildContext context) {
-    if (_analysisData == null) return const SizedBox.shrink();
+    if (_analysisData == null || _analysisData is! Map) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildPeriodBanner(context),
+        const SizedBox(height: 20),
         _buildRecommendationCard(context),
         const SizedBox(height: 20),
         _buildValuationCard(context),
@@ -291,12 +392,70 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     );
   }
 
+  /// Shows exactly which reporting period the figures below belong to —
+  /// and whether they were annualised. Every metric on this page is for
+  /// this period, so it must be stated explicitly.
+  Widget _buildPeriodBanner(BuildContext context) {
+    final data = _analysisData as Map;
+    final description = _periodDescription(data);
+    final marketPrice = _num(data['market_price']);
+    final priceDate = data['price_date']?.toString() ?? '';
+    final isHistorical = data['is_historical'] == true;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: context.colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_today,
+                  size: 20, color: context.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  description.isEmpty ? 'Reporting period' : description,
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (marketPrice != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Market price used: TZS ${marketPrice.toStringAsFixed(2)}'
+              '${priceDate.isNotEmpty ? ' (as of $priceDate'
+                  '${isHistorical ? ', historical price' : ''})' : ''}',
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildRecommendationCard(BuildContext context) {
-    final recommendation = _analysisData['analysis']['recommendation'];
-    final action = recommendation['action'] ?? 'N/A';
-    final score = recommendation['score'] ?? 0;
-    final maxScore = recommendation['max_score'] ?? 100;
-    final summary = recommendation['summary'] ?? '';
+    final analysis = _analysisData is Map ? _analysisData['analysis'] : null;
+    final recommendation = analysis is Map ? analysis['recommendation'] : null;
+    if (recommendation is! Map) return const SizedBox.shrink();
+
+    final action = recommendation['action']?.toString() ?? 'N/A';
+    final score = _num(recommendation['score']) ?? 0;
+    final maxScore = _num(recommendation['max_score']) ?? 100;
+    final summary = recommendation['summary']?.toString() ?? '';
 
     // Determine color based on action
     Color gradientStart;
@@ -379,7 +538,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              'Score: $score/$maxScore',
+              'Score: ${score.toStringAsFixed(0)}/${maxScore.toStringAsFixed(0)}',
               style: context.textTheme.titleMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -392,13 +551,18 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildValuationCard(BuildContext context) {
-    final valuation = _analysisData['analysis']['valuation'];
-    final marketPrice = valuation['market_price'] ?? 0;
-    final bookValue = valuation['book_value_per_share'] ?? 0;
-    final grahamNumber = valuation['graham_number'] ?? 0;
-    final intrinsicValue = valuation['intrinsic_value'] ?? 0;
-    final marginOfSafety = valuation['margin_of_safety'] ?? 0;
-    final valuationStatus = valuation['valuation_status'] ?? 'Unknown';
+    final analysis = _analysisData is Map ? _analysisData['analysis'] : null;
+    final valuation = analysis is Map ? analysis['valuation'] : null;
+    if (valuation is! Map) return const SizedBox.shrink();
+
+    // Null means "no data" — show N/A, never a fabricated zero.
+    final marketPrice = _num(valuation['market_price']);
+    final bookValue = _num(valuation['book_value_per_share']);
+    final grahamNumber = _num(valuation['graham_number']);
+    final intrinsicValue = _num(valuation['intrinsic_value']);
+    final marginOfSafety = _num(valuation['margin_of_safety']);
+    final valuationStatus =
+        valuation['valuation_status']?.toString() ?? 'unknown';
 
     // Format valuation status
     String formatStatus(String status) {
@@ -461,13 +625,13 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildMetricRow(context, 'Market Price', '$marketPrice TZS'),
+            _buildMetricRow(context, 'Market Price', _fmt(marketPrice, suffix: ' TZS')),
             Divider(),
-            _buildMetricRow(context, 'Book Value Per Share', '${bookValue.toStringAsFixed(2)} TZS'),
+            _buildMetricRow(context, 'Book Value Per Share', _fmt(bookValue, suffix: ' TZS')),
             Divider(),
-            _buildMetricRow(context, 'Graham Number (Max. Safe Value)', '${grahamNumber.toStringAsFixed(2)} TZS'),
+            _buildMetricRow(context, 'Graham Number (Max. Safe Value)', _fmt(grahamNumber, suffix: ' TZS')),
             Divider(),
-            _buildMetricRow(context, 'Intrinsic Value (True Value)', '${intrinsicValue.toStringAsFixed(2)} TZS'),
+            _buildMetricRow(context, 'Intrinsic Value (True Value)', _fmt(intrinsicValue, suffix: ' TZS')),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -489,9 +653,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                     ),
                   ),
                   Text(
-                    '$marginOfSafety%',
+                    _fmt(marginOfSafety, suffix: '%'),
                     style: context.textTheme.titleMedium?.copyWith(
-                      color: Colors.green[700],
+                      color: marginOfSafety == null || marginOfSafety < 0
+                          ? Colors.red[700]
+                          : Colors.green[700],
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -505,14 +671,17 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildPredictionCard(BuildContext context) {
-    final prediction = _analysisData['analysis']['prediction'];
-    final predictedPrice = prediction['predicted_price'] ?? 0;
-    final conservativePrice = prediction['conservative_price'] ?? 0;
-    final optimisticPrice = prediction['optimistic_price'] ?? 0;
-    final expectedChangePercent = prediction['expected_change_percent'] ?? 0;
-    final expectedChange = prediction['expected_change'] ?? 0;
-    final confidence = prediction['confidence'] ?? 'Unknown';
-    final timeframe = prediction['timeframe'] ?? '';
+    final analysis = _analysisData is Map ? _analysisData['analysis'] : null;
+    final prediction = analysis is Map ? analysis['prediction'] : null;
+    if (prediction is! Map) return const SizedBox.shrink();
+
+    final predictedPrice = _num(prediction['predicted_price']);
+    final conservativePrice = _num(prediction['conservative_price']);
+    final optimisticPrice = _num(prediction['optimistic_price']);
+    final expectedChangePercent = _num(prediction['expected_change_percent']);
+    final expectedChange = _num(prediction['expected_change']);
+    final confidence = prediction['confidence']?.toString() ?? 'unknown';
+    final timeframe = prediction['timeframe']?.toString() ?? '3-month';
 
     return Card(
       elevation: 2,
@@ -545,15 +714,15 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _buildPredictionItem(context, 'Conservative', '${conservativePrice.toStringAsFixed(2)}'),
+                  child: _buildPredictionItem(context, 'Conservative', _fmt(conservativePrice)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildPredictionItem(context, 'Expected', '${predictedPrice.toStringAsFixed(2)}', isPrimary: true),
+                  child: _buildPredictionItem(context, 'Expected', _fmt(predictedPrice), isPrimary: true),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildPredictionItem(context, 'Optimistic', '${optimisticPrice.toStringAsFixed(2)}'),
+                  child: _buildPredictionItem(context, 'Optimistic', _fmt(optimisticPrice)),
                 ),
               ],
             ),
@@ -562,7 +731,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: expectedChangePercent >= 0 ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                color: (expectedChangePercent ?? 0) >= 0
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -573,16 +744,21 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${expectedChangePercent >= 0 ? '+' : ''}${expectedChangePercent.toStringAsFixed(1)}%',
+                    expectedChangePercent == null
+                        ? 'N/A'
+                        : '${expectedChangePercent >= 0 ? '+' : ''}${expectedChangePercent.toStringAsFixed(1)}%',
                     style: context.textTheme.headlineMedium?.copyWith(
-                      color: expectedChangePercent >= 0 ? Colors.green[700] : Colors.red[700],
+                      color: (expectedChangePercent ?? 0) >= 0
+                          ? Colors.green[700]
+                          : Colors.red[700],
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    '(${expectedChange >= 0 ? '+' : ''}${expectedChange.toStringAsFixed(2)} TZS)',
-                    style: context.textTheme.bodySmall,
-                  ),
+                  if (expectedChange != null)
+                    Text(
+                      '(${expectedChange >= 0 ? '+' : ''}${expectedChange.toStringAsFixed(2)} TZS)',
+                      style: context.textTheme.bodySmall,
+                    ),
                 ],
               ),
             ),
@@ -595,7 +771,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   style: context.textTheme.bodyMedium,
                 ),
                 Chip(
-                  label: Text(confidence[0].toUpperCase() + confidence.substring(1)),
+                  label: Text(
+                    confidence.isEmpty
+                        ? 'Unknown'
+                        : confidence[0].toUpperCase() + confidence.substring(1),
+                  ),
                   backgroundColor: Colors.green.withValues(alpha: 0.1),
                   side: BorderSide(
                     color: Colors.green.withValues(alpha: 0.2),
@@ -658,79 +838,63 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildFinancialMetrics(BuildContext context) {
-    final metrics = _analysisData?['analysis']?['metrics'] ?? {};
+    final analysis = _analysisData is Map ? _analysisData['analysis'] : null;
+    final metrics = analysis is Map ? analysis['metrics'] : null;
+    if (metrics is! Map) return const SizedBox.shrink();
 
-    // Safe access with null protection
-    final perShare = metrics['per_share'] ?? {};
-    final valuation = metrics['valuation'] ?? {};
-    final profitability = metrics['profitability'] ?? {};
-    final financialHealth = metrics['financial_health'] ?? {};
+    Map<String, dynamic> group(String key) {
+      final value = metrics[key];
+      return value is Map ? value : const <String, dynamic>{};
+    }
 
-    final healthScore = _analysisData?['analysis']?['health_score'] ?? 0;
+    // The backend groups metrics differently per industry. There is NO
+    // 'financial_health' group: manufacturing keeps D/E under 'leverage'
+    // and current ratio under 'liquidity', while banks have no leverage
+    // group at all (they report NPL, CAR and LDR instead).
+    final perShare = group('per_share');
+    final valuation = group('valuation');
+    final profitability = group('profitability');
+    final liquidity = group('liquidity');
+    final leverage = group('leverage');
+    final assetQuality = group('asset_quality');
+    final capitalAdequacy = group('capital_adequacy');
+    final meta = group('_meta');
+    final isBanking = meta['industry_type'] == 'banking';
 
-    final metricItems = [
-      {
-        'label': 'EPS',
-        'value': '${perShare['eps']?.toStringAsFixed(2) ?? 'N/A'}',
-        'color': Colors.blue,
-      },
-      {
-        'label': 'P/B',
-        'value': '${valuation['pb_ratio']?.toStringAsFixed(2) ?? 'N/A'}',
-        'color': Colors.green,
-      },
-      {
-        'label': 'PEG',
-        'value': valuation['peg_ratio']?.toString() ?? 'N/A',
-        'color': Colors.grey,
-      },
-      {
-        'label': 'DY',
-        'value': '${valuation['dividend_yield']?.toStringAsFixed(2) ?? 'N/A'}%',
-        'color': Colors.teal,
-      },
-      {
-        'label': 'ROE',
-        'value': '${profitability['roe']?.toStringAsFixed(2) ?? 'N/A'}%',
-        'color': Colors.blue,
-      },
-      {
-        'label': 'ROA',
-        'value': '${profitability['roa']?.toStringAsFixed(2) ?? 'N/A'}%',
-        'color': Colors.green,
-      },
-      {
-        'label': 'NPM',
-        'value':
-            '${profitability['net_profit_margin']?.toStringAsFixed(2) ?? 'N/A'}%',
-        'color': Colors.teal,
-      },
-      {
-        'label': 'GPM',
-        'value':
-            '${profitability['gross_profit_margin']?.toStringAsFixed(2) ?? 'N/A'}%',
-        'color': Colors.red,
-      },
-      {
-        'label': 'D/E',
-        'value':
-            '${financialHealth['debt_to_equity']?.toStringAsFixed(2) ?? 'N/A'}',
-        'color': Colors.pink,
-      },
-      {
-        'label': 'CR',
-        'value':
-            '${financialHealth['current_ratio']?.toStringAsFixed(2) ?? 'N/A'}',
-        'color': Colors.red,
-      },
-      {
-        'label': 'ICR',
-        'value':
-            '${financialHealth['interest_coverage']?.toStringAsFixed(2) ?? 'N/A'}',
-        'color': Colors.orange,
-      },
-      {'label': 'Score', 'value': '$healthScore', 'color': Colors.purple},
+    final healthScore = analysis is Map ? _num(analysis['health_score']) : null;
+
+    final metricItems = <Map<String, dynamic>>[
+      {'label': 'EPS', 'value': _fmt(perShare['eps']), 'color': Colors.blue},
+      {'label': 'P/E', 'value': _fmt(valuation['pe_ratio']), 'color': Colors.indigo},
+      {'label': 'P/B', 'value': _fmt(valuation['pb_ratio']), 'color': Colors.green},
+      {'label': 'PEG', 'value': _fmt(valuation['peg_ratio']), 'color': Colors.grey},
+      {'label': 'DY', 'value': _fmt(valuation['dividend_yield'], suffix: '%'), 'color': Colors.teal},
+      {'label': 'ROE', 'value': _fmt(profitability['roe'], suffix: '%'), 'color': Colors.blue},
+      {'label': 'ROA', 'value': _fmt(profitability['roa'], suffix: '%'), 'color': Colors.green},
     ];
+
+    if (isBanking) {
+      metricItems.addAll([
+        {'label': 'NIM', 'value': _fmt(profitability['net_interest_margin'], suffix: '%'), 'color': Colors.teal},
+        {'label': 'NPL', 'value': _fmt(assetQuality['npl_ratio'], suffix: '%'), 'color': Colors.red},
+        {'label': 'CAR', 'value': _fmt(capitalAdequacy['car'], suffix: '%'), 'color': Colors.purple},
+        {'label': 'LDR', 'value': _fmt(liquidity['loan_to_deposit'], suffix: '%'), 'color': Colors.orange},
+      ]);
+    } else {
+      metricItems.addAll([
+        {'label': 'NPM', 'value': _fmt(profitability['net_profit_margin'], suffix: '%'), 'color': Colors.teal},
+        {'label': 'GPM', 'value': _fmt(profitability['gross_profit_margin'], suffix: '%'), 'color': Colors.red},
+        {'label': 'D/E', 'value': _fmt(leverage['debt_to_equity']), 'color': Colors.pink},
+        {'label': 'CR', 'value': _fmt(liquidity['current_ratio']), 'color': Colors.red},
+        {'label': 'ICR', 'value': _fmt(leverage['interest_coverage']), 'color': Colors.orange},
+      ]);
+    }
+
+    metricItems.add({
+      'label': 'Score',
+      'value': healthScore == null ? 'N/A' : healthScore.toStringAsFixed(0),
+      'color': Colors.purple,
+    });
 
     return Card(
       elevation: 2,
@@ -850,9 +1014,14 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildSignalsSection(BuildContext context) {
-    final signals = _analysisData['analysis']['signals'];
-    final greenFlags = signals['green_flags'] as List<dynamic>? ?? [];
-    final redFlags = signals['red_flags'] as List<dynamic>? ?? [];
+    final analysis = _analysisData is Map ? _analysisData['analysis'] : null;
+    final signals = analysis is Map ? analysis['signals'] : null;
+    final greenFlags = signals is Map
+        ? (signals['green_flags'] is List ? signals['green_flags'] : <dynamic>[])
+        : <dynamic>[];
+    final redFlags = signals is Map
+        ? (signals['red_flags'] is List ? signals['red_flags'] : <dynamic>[])
+        : <dynamic>[];
 
     return Column(
       children: [
@@ -886,12 +1055,14 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                ...greenFlags.map((flag) => _buildSignalItem(
-                  context,
-                  flag['title'] ?? '',
-                  flag['description'] ?? '',
-                  true,
-                )),
+                ...greenFlags.whereType<Map<String, dynamic>>().map(
+                  (flag) => _buildSignalItem(
+                    context,
+                    flag['title']?.toString() ?? '',
+                    flag['description']?.toString() ?? '',
+                    true,
+                  ),
+                ),
               ],
             ),
           ),
@@ -927,12 +1098,14 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                ...redFlags.map((flag) => _buildSignalItem(
-                  context,
-                  flag['title'] ?? '',
-                  flag['description'] ?? '',
-                  false,
-                )),
+                ...redFlags.whereType<Map<String, dynamic>>().map(
+                  (flag) => _buildSignalItem(
+                    context,
+                    flag['title']?.toString() ?? '',
+                    flag['description']?.toString() ?? '',
+                    false,
+                  ),
+                ),
               ],
             ),
           ),

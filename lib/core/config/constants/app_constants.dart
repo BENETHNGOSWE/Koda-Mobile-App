@@ -43,10 +43,13 @@ class ApiEndpoints {
   static const String dashboard = '/dashboard';
   static const String stocksList = '/stocks';
   static String stockDetails(String symbol) => '/stocks/$symbol';
+  static String stockPrices(String symbol) => '/stocks/$symbol/prices';
   static const String compare = '/stocks/compare';
   static String analysis(int stockId) => '/analysis/stock/$stockId';
   static String periods(int stockId) => '/analysis/stock/$stockId/periods';
   static const String marketSummary = '/market/summary';
+  static const String stocksStats = '/stocks/stats';
+  static String userActivities(int limit) => '/user/activities?limit=$limit';
 }
 
 class AppStrings {

@@ -1,6 +1,7 @@
 // lib/core/config/dio_client.dart
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -53,21 +54,29 @@ class DioClient {
       ),
     );
 
-    _dio.interceptors.addAll([
+    _dio.interceptors.add(
       AuthInterceptor(
         secureStorage: _secureStorage,
         dio: _dio,
         navigatorKey: _navigatorKey,
         ref: _ref,
       ),
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        error: true,
-        requestHeader: true,
-        responseHeader: false,
-      ),
-    ]);
+    );
+
+    // Verbose logging (Authorization header, request bodies with PIN) is
+    // only safe in debug builds. Release builds must not leak credentials
+    // to the device log.
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          error: true,
+          requestHeader: true,
+          responseHeader: false,
+        ),
+      );
+    }
   }
 
   Dio get dio => _dio;
@@ -195,14 +204,25 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     debugPrint('AuthInterceptor: Error ${err.response?.statusCode} for ${err.requestOptions.path}');
 
+    // Do not intercept our own refresh/login/register calls
+    final path = err.requestOptions.path;
+    final isAuthCall = path.contains('/login') ||
+        path.contains('/register') ||
+        path.contains('/auth/refresh');
+
     // Handle 401 Unauthorized or 403 Forbidden (unauthenticated/unauthorized)
-    if ((err.response?.statusCode == 401 || err.response?.statusCode == 403) && !_isRefreshing) {
+    if ((err.response?.statusCode == 401 || err.response?.statusCode == 403) &&
+        !_isRefreshing &&
+        !isAuthCall) {
       _isRefreshing = true;
 
       try {
         final refreshToken = await _secureStorage.getRefreshToken();
 
-        if (refreshToken != null) {
+        // The current backend issues long-lived access tokens and returns no
+        // refresh_token, so there is nothing to refresh with in most cases.
+        // In that situation the only correct action is to sign the user out.
+        if (refreshToken != null && refreshToken.isNotEmpty) {
           debugPrint('AuthInterceptor: Attempting token refresh...');
 
           // Try to refresh the token
@@ -235,12 +255,11 @@ class AuthInterceptor extends Interceptor {
           }
         }
 
-        // If refresh fails, clear auth data and navigate to login
-        debugPrint('AuthInterceptor: Refresh failed, clearing auth data and navigating to login');
+        // No refresh token (or refresh failed): clear auth data and go to login
+        debugPrint('AuthInterceptor: No valid refresh possible, signing out');
         await _secureStorage.clearAllAuthData();
         _isRefreshing = false;
 
-        // Navigate to login screen
         _navigateToLogin();
 
         handler.next(err);
@@ -249,7 +268,6 @@ class AuthInterceptor extends Interceptor {
         _isRefreshing = false;
         await _secureStorage.clearAllAuthData();
 
-        // Navigate to login screen on refresh error
         _navigateToLogin();
 
         handler.next(err);

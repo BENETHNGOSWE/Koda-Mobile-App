@@ -23,6 +23,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   Map<String, dynamic>? stockData;
   List<Map<String, dynamic>> priceData = [];
   Map<String, dynamic>? simulationData;
+  String? _stockError;
 
   bool _isLoadingStock = true;
   bool _isLoadingPrices = true;
@@ -34,6 +35,29 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   final TextEditingController _capitalController = TextEditingController(text: '100000');
   final TextEditingController _dateController = TextEditingController();
   String _selectedStrategy = 'Balanced';
+
+  /// The API serialises decimal columns as strings ("2910.00"), so every
+  /// value that gets compared or formatted must go through this.
+  double? _num(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  String _fmt(dynamic value, {int decimals = 2, String suffix = ''}) {
+    final n = _num(value);
+    if (n == null) return 'N/A';
+    return n.toStringAsFixed(decimals) + suffix;
+  }
+
+  String _str(dynamic value, [String fallback = 'N/A']) {
+    if (value == null) return fallback;
+    return value.toString();
+  }
+
+  Map<String, dynamic> _map(dynamic value) {
+    return value is Map ? value.cast<String, dynamic>() : const <String, dynamic>{};
+  }
 
   @override
   void initState() {
@@ -66,17 +90,38 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       if (mounted) {
         setState(() {
           // API returns data under response.data['data']['stock']
-          stockData = response.data['data']?['stock'] ?? response.data['stock'];
+          final raw = response.data;
+          stockData = raw is Map
+              ? (raw['data'] is Map ? raw['data']['stock'] : raw['stock'])
+              : null;
+          if (stockData is! Map) {
+            _stockError = 'Stock data not found for $symbol.';
+          }
           _isLoadingStock = false;
         });
         debugPrint('Stock data loaded: $stockData');
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingStock = false);
+        setState(() {
+          _isLoadingStock = false;
+          _stockError = _extractError(e);
+        });
       }
       debugPrint('Error fetching stock details: $e');
     }
+  }
+
+  String _extractError(dynamic e) {
+    try {
+      final data = e.response?.data;
+      if (data is Map && data['message'] is String) {
+        return data['message'] as String;
+      }
+      final message = e.message;
+      if (message is String && message.isNotEmpty) return message;
+    } catch (_) {}
+    return 'Something went wrong. Please try again.';
   }
 
   Future<void> _fetchPriceData() async {
@@ -204,6 +249,33 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       ),
       body: _isLoadingStock
           ? const Center(child: CircularProgressIndicator())
+          : _stockError != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 48, color: context.colorScheme.error),
+                        const SizedBox(height: 16),
+                        Text(
+                          _stockError!,
+                          textAlign: TextAlign.center,
+                          style: context.textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() => _stockError = null);
+                            _fetchStockDetails();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -237,10 +309,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildStockHeader() {
-    if (stockData == null) return const SizedBox();
+    if (stockData is! Map) return const SizedBox();
 
-    final changePercent = stockData!['change_percent'] ?? 0.0;
+    final changePercent = _num(stockData!['change_percent']) ?? 0.0;
     final isPositive = changePercent >= 0;
+    final currentPrice = _num(stockData!['current_price']);
+    final change = _num(stockData!['change']);
 
     return Card(
       elevation: 2,
@@ -267,31 +341,35 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             Row(
               children: [
                 Text(
-                  'TZS ${stockData!['current_price']}',
+                  currentPrice == null
+                      ? 'No price data'
+                      : 'TZS ${currentPrice.toStringAsFixed(2)}',
                   style: context.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: (isPositive
+                if (change != null) ...[
+                  const SizedBox(width: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isPositive
+                              ? const Color(AppColors.successColor)
+                              : const Color(AppColors.errorColor))
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${isPositive ? '+' : ''}${change.toStringAsFixed(2)} (${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%)',
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        color: isPositive
                             ? const Color(AppColors.successColor)
-                            : const Color(AppColors.errorColor))
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${isPositive ? '+' : ''}${stockData!['change']} (${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%)',
-                    style: context.textTheme.bodyMedium?.copyWith(
-                      color: isPositive
-                          ? const Color(AppColors.successColor)
-                          : const Color(AppColors.errorColor),
-                      fontWeight: FontWeight.w600,
+                            : const Color(AppColors.errorColor),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ],
@@ -392,7 +470,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                         height: 200,
                         child: Center(child: Text('No data available')),
                       )
-                    : SizedBox(
+                    : _parsedCloses().isEmpty
+                        ? const SizedBox(
+                            height: 200,
+                            child: Center(child: Text('No data available')),
+                          )
+                        : SizedBox(
                         height: 300,
                         child: LineChart(
                           LineChartData(
@@ -429,7 +512,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                                   interval: (priceData.length / 6).ceilToDouble(),
                                   getTitlesWidget: (value, meta) {
                                     if (value.toInt() >= 0 && value.toInt() < priceData.length) {
-                                      final date = priceData[value.toInt()]['date'] as String;
+                                      final date = priceData[value.toInt()]['date']?.toString() ?? '';
                                       final parts = date.split('-');
                                       if (parts.length == 3) {
                                         return Padding(
@@ -471,10 +554,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                             maxY: _getMaxPrice() + 10,
                             lineBarsData: [
                               LineChartBarData(
-                                spots: priceData.asMap().entries.map((entry) {
+                                spots: priceData
+                                        .asMap()
+                                        .entries
+                                        .where((entry) => _num(entry.value['close']) != null)
+                                        .map((entry) {
                                   return FlSpot(
                                     entry.key.toDouble(),
-                                    (entry.value['close'] as num).toDouble(),
+                                    _num(entry.value['close'])!.toDouble(),
                                   );
                                 }).toList(),
                                 isCurved: true,
@@ -497,18 +584,25 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  double _getMinPrice() {
-    if (priceData.isEmpty) return 0;
+  /// Close prices that could actually be parsed; rows with a missing or
+  /// malformed close are skipped instead of crashing the chart.
+  List<double> _parsedCloses() {
     return priceData
-        .map((p) => (p['close'] as num).toDouble())
-        .reduce((a, b) => a < b ? a : b);
+        .map((p) => _num(p['close']))
+        .whereType<double>()
+        .toList();
+  }
+
+  double _getMinPrice() {
+    final closes = _parsedCloses();
+    if (closes.isEmpty) return 0;
+    return closes.reduce((a, b) => a < b ? a : b);
   }
 
   double _getMaxPrice() {
-    if (priceData.isEmpty) return 100;
-    return priceData
-        .map((p) => (p['close'] as num).toDouble())
-        .reduce((a, b) => a > b ? a : b);
+    final closes = _parsedCloses();
+    if (closes.isEmpty) return 100;
+    return closes.reduce((a, b) => a > b ? a : b);
   }
 
   Widget _buildTradingSimulator() {
@@ -681,12 +775,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildSimulationResults() {
-    if (simulationData == null) return const SizedBox();
+    if (simulationData is! Map) return const SizedBox();
 
-    final investment = simulationData!['investment'];
-    final currentStatus = simulationData!['current_status'];
-    final marketSentiment = simulationData!['market_sentiment'];
-    final bestStrategy = simulationData!['best_strategy'];
+    final investment = _map(simulationData!['investment']);
+    final currentStatus = _map(simulationData!['current_status']);
+    final marketSentiment = _map(simulationData!['market_sentiment']);
+    final bestStrategy = _map(simulationData!['best_strategy']);
+    final primaryRec = _map(bestStrategy['primary_recommendation']);
+    final profitLossPercent = _num(currentStatus['profit_loss_percent']);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,8 +805,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   child: _buildSummaryCard(
                     'CURRENT VALUE',
                     'TZS ${_formatNumber(currentStatus['current_value'])}',
-                    '${currentStatus['profit_loss_percent'] >= 0 ? '+' : ''}${currentStatus['profit_loss_percent'].toStringAsFixed(2)}%',
-                    const Color(AppColors.successColor),
+                    profitLossPercent == null
+                        ? 'N/A'
+                        : '${profitLossPercent >= 0 ? '+' : ''}${profitLossPercent.toStringAsFixed(2)}%',
+                    profitLossPercent == null || profitLossPercent >= 0
+                        ? const Color(AppColors.successColor)
+                        : const Color(AppColors.errorColor),
                   ),
                 ),
               ],
@@ -721,8 +821,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 Expanded(
                   child: _buildSummaryCard(
                     'RECOMMENDED ACTION',
-                    bestStrategy['primary_recommendation']['action'],
-                    bestStrategy['primary_recommendation']['holding_period'],
+                    _str(primaryRec['action']),
+                    _str(primaryRec['holding_period']),
                     const Color(0xFF9C27B0),
                   ),
                 ),
@@ -730,8 +830,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 Expanded(
                   child: _buildSummaryCard(
                     'MARKET SENTIMENT',
-                    marketSentiment['sentiment'],
-                    'Score: ${marketSentiment['sentiment_score'].toStringAsFixed(2)}%',
+                    _str(marketSentiment['sentiment']),
+                    'Score: ${_fmt(marketSentiment['sentiment_score'])}%',
                     const Color(0xFFFFA726),
                   ),
                 ),
@@ -789,9 +889,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildPredictionsTabs() {
-    if (simulationData == null) return const SizedBox();
+    if (simulationData is! Map) return const SizedBox();
 
-    final predictions = simulationData!['predictions'];
+    final predictions = _map(simulationData!['predictions']);
 
     return DefaultTabController(
       length: 4,
@@ -855,12 +955,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _buildPredictionCard('2d', predictions['2d']),
-              _buildPredictionCard('1w', predictions['1w']),
-              _buildPredictionCard('2w', predictions['2w']),
-              _buildPredictionCard('1m', predictions['1m']),
-              _buildPredictionCard('3m', predictions['3m']),
-              _buildPredictionCard('6m', predictions['6m']),
+              _buildPredictionCard('2d', _map(predictions['2d'])),
+              _buildPredictionCard('1w', _map(predictions['1w'])),
+              _buildPredictionCard('2w', _map(predictions['2w'])),
+              _buildPredictionCard('1m', _map(predictions['1m'])),
+              _buildPredictionCard('3m', _map(predictions['3m'])),
+              _buildPredictionCard('6m', _map(predictions['6m'])),
             ],
           ),
         ],
@@ -868,21 +968,27 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildPredictionCard(String key, Map<String, dynamic> prediction) {
-    final scenarios = prediction['scenarios'];
-    final confidence = prediction['confidence'];
+    final scenariosRaw = prediction['scenarios'];
+    if (scenariosRaw is! Map) return const SizedBox.shrink();
+    final scenarios = scenariosRaw.cast<String, dynamic>();
+    final confidence = _map(prediction['confidence']);
+    final confidenceScore = _num(confidence['score']);
+    final expectedProfit = _num(scenarios['expected'] is Map ? (scenarios['expected'] as Map)['profit'] : null);
+    final expected = _map(scenarios['expected']);
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final confidenceColor = _getConfidenceColor(confidenceScore);
         return Container(
           width: constraints.maxWidth < 600
               ? constraints.maxWidth
               : (constraints.maxWidth - 12) / 2,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _getConfidenceColor(confidence['score']).withValues(alpha: 0.05),
+            color: confidenceColor.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: _getConfidenceColor(confidence['score']).withValues(alpha: 0.3),
+              color: confidenceColor.withValues(alpha: 0.3),
             ),
           ),
           child: Column(
@@ -893,7 +999,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             children: [
               Expanded(
                 child: Text(
-                  prediction['period'],
+                  _str(prediction['period'], key),
                   style: context.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -905,11 +1011,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getConfidenceColor(confidence['score']),
+                    color: confidenceColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${confidence['score']}%',
+                    confidenceScore == null ? 'N/A' : '${confidenceScore.toStringAsFixed(0)}%',
                     style: context.textTheme.bodySmall?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -922,17 +1028,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${prediction['days']} days',
+            '${_str(prediction['days'], '0')} days',
             style: context.textTheme.bodySmall?.copyWith(
               color: context.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const Divider(height: 24),
-          _buildScenarioRow('Best Case:', scenarios['best']['price'], scenarios['best']['return_percent'], true),
+          _buildScenarioRow('Best Case:', _scenarioValue(scenarios, 'best', 'price'), _scenarioValue(scenarios, 'best', 'return_percent'), true),
           const SizedBox(height: 8),
-          _buildScenarioRow('Expected:', scenarios['expected']['price'], scenarios['expected']['return_percent'], null),
+          _buildScenarioRow('Expected:', expected['price'], expected['return_percent'], null),
           const SizedBox(height: 8),
-          _buildScenarioRow('Worst Case:', scenarios['worst']['price'], scenarios['worst']['return_percent'], false),
+          _buildScenarioRow('Worst Case:', _scenarioValue(scenarios, 'worst', 'price'), _scenarioValue(scenarios, 'worst', 'return_percent'), false),
           const Divider(height: 24),
           Text(
             'Your Return:',
@@ -942,10 +1048,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'TZS ${_formatNumber(scenarios['expected']['profit'])}',
+            'TZS ${_formatNumber(expected['profit'])}',
             style: context.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: scenarios['expected']['profit'] >= 0
+              color: expectedProfit == null || expectedProfit >= 0
                   ? const Color(AppColors.successColor)
                   : const Color(AppColors.errorColor),
             ),
@@ -959,7 +1065,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              prediction['recommendation'],
+              _str(prediction['recommendation'], ''),
               style: context.textTheme.bodySmall?.copyWith(
                 color: const Color(AppColors.warningColor),
               ),
@@ -968,7 +1074,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Risk/Reward: ${prediction['risk_reward_ratio']}:1',
+            'Risk/Reward: ${_str(prediction['risk_reward_ratio'])}:1',
             style: context.textTheme.bodySmall?.copyWith(
               color: context.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
@@ -979,6 +1085,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         );
       },
     );
+  }
+
+  dynamic _scenarioValue(Map<String, dynamic> scenarios, String which, String field) {
+    final item = scenarios[which];
+    return item is Map ? item[field] : null;
   }
 
   Widget _buildScenarioRow(String label, dynamic price, dynamic percent, bool? isPositive) {
@@ -1020,7 +1131,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  Color _getConfidenceColor(int score) {
+  Color _getConfidenceColor(double? score) {
+    if (score == null) return const Color(0xFFFFA726);
     if (score >= 75) return const Color(0xFF4CAF50);
     if (score >= 65) return const Color(0xFF8BC34A);
     if (score >= 50) return const Color(0xFFFFA726);
@@ -1028,9 +1140,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildTechnicalTab() {
-    if (simulationData == null) return const SizedBox();
+    if (simulationData is! Map) return const SizedBox();
 
-    final technical = simulationData!['technical_analysis'];
+    final technical = _map(simulationData!['technical_analysis']);
+    final movingAverages = _map(technical['moving_averages']);
+    final momentum = _map(technical['momentum']);
+    final supportResistance = _map(technical['support_resistance']);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1066,10 +1181,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildTechnicalRow('SMA 20', technical['moving_averages']['sma_20'].toString()),
-                  _buildTechnicalRow('SMA 50', technical['moving_averages']['sma_50'].toString()),
-                  _buildTechnicalRow('EMA 12', technical['moving_averages']['ema_12'].toString()),
-                  _buildTechnicalRow('EMA 26', technical['moving_averages']['ema_26'].toString()),
+                  _buildTechnicalRow('SMA 20', _fmt(movingAverages['sma_20'])),
+                  _buildTechnicalRow('SMA 50', _fmt(movingAverages['sma_50'])),
+                  _buildTechnicalRow('EMA 12', _fmt(movingAverages['ema_12'])),
+                  _buildTechnicalRow('EMA 26', _fmt(movingAverages['ema_26'])),
                 ],
               ),
             ),
@@ -1099,8 +1214,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildTechnicalRow('RSI', '${technical['momentum']['rsi'].toStringAsFixed(2)} (${technical['momentum']['rsi_signal']})'),
-                  _buildTechnicalRow('MACD', '${technical['momentum']['macd'].toStringAsFixed(2)} (${technical['momentum']['macd_signal']})'),
+                  _buildTechnicalRow('RSI', '${_fmt(momentum['rsi'])} (${_str(momentum['rsi_signal'], 'n/a')})'),
+                  _buildTechnicalRow('MACD', '${_fmt(momentum['macd'])} (${_str(momentum['macd_signal'], 'n/a')})'),
                 ],
               ),
             ),
@@ -1130,13 +1245,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildTechnicalRow('Resistance 3', technical['support_resistance']['resistance_3'].toString(), Colors.red),
-                  _buildTechnicalRow('Resistance 2', technical['support_resistance']['resistance_2'].toString(), Colors.red),
-                  _buildTechnicalRow('Resistance 1', technical['support_resistance']['resistance_1'].toString(), Colors.red),
-                  _buildTechnicalRow('Pivot', technical['support_resistance']['pivot'].toString(), Colors.blue),
-                  _buildTechnicalRow('Support 1', technical['support_resistance']['support_1'].toString(), Colors.green),
-                  _buildTechnicalRow('Support 2', technical['support_resistance']['support_2'].toString(), Colors.green),
-                  _buildTechnicalRow('Support 3', technical['support_resistance']['support_3'].toString(), Colors.green),
+                  _buildTechnicalRow('Resistance 3', _fmt(supportResistance['resistance_3']), Colors.red),
+                  _buildTechnicalRow('Resistance 2', _fmt(supportResistance['resistance_2']), Colors.red),
+                  _buildTechnicalRow('Resistance 1', _fmt(supportResistance['resistance_1']), Colors.red),
+                  _buildTechnicalRow('Pivot', _fmt(supportResistance['pivot']), Colors.blue),
+                  _buildTechnicalRow('Support 1', _fmt(supportResistance['support_1']), Colors.green),
+                  _buildTechnicalRow('Support 2', _fmt(supportResistance['support_2']), Colors.green),
+                  _buildTechnicalRow('Support 3', _fmt(supportResistance['support_3']), Colors.green),
                 ],
               ),
             ),
@@ -1165,10 +1280,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildSignalsTab() {
-    if (simulationData == null) return const SizedBox();
+    if (simulationData is! Map) return const SizedBox();
 
-    final signals = simulationData!['trading_signals'];
-    final signalsList = signals['signals'] as List;
+    final signals = _map(simulationData!['trading_signals']);
+    final rawList = signals['signals'];
+    final signalsList = rawList is List ? rawList.whereType<Map<String, dynamic>>().toList() : <Map<String, dynamic>>[];
+    final summary = _map(signals['summary']);
+    final overall = summary['overall']?.toString() ?? 'neutral';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1206,15 +1324,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _getSignalColor(signals['summary']['overall']).withValues(alpha: 0.1),
+                      color: _getSignalColor(overall).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _getSignalColor(signals['summary']['overall'])),
+                      border: Border.all(color: _getSignalColor(overall)),
                     ),
                     child: Text(
-                      signals['summary']['overall'].toString().toUpperCase(),
+                      overall.toUpperCase(),
                       style: context.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: _getSignalColor(signals['summary']['overall']),
+                        color: _getSignalColor(overall),
                       ),
                     ),
                   ),
@@ -1225,7 +1343,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const SizedBox(height: 16),
 
           // Signal List
-          ...signalsList.map((signal) => Card(
+          if (signalsList.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                'No trading signals for this stock yet.',
+                style: context.textTheme.bodyMedium,
+              ),
+            )
+          else
+            ...signalsList.map((signal) => Card(
             margin: const EdgeInsets.only(bottom: 12),
             elevation: 2,
             shadowColor: Colors.black.withValues(alpha: 0.1),
@@ -1244,22 +1371,22 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     : const Color(AppColors.errorColor),
               ),
               title: Text(
-                signal['indicator'],
+                _str(signal['indicator']),
                 style: context.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: Text(signal['message']),
+              subtitle: Text(_str(signal['message'], '')),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getStrengthColor(signal['strength']).withValues(alpha: 0.1),
+                  color: _getStrengthColor(signal['strength']?.toString() ?? 'weak').withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  signal['strength'],
+                  _str(signal['strength'], 'weak'),
                   style: context.textTheme.bodySmall?.copyWith(
-                    color: _getStrengthColor(signal['strength']),
+                    color: _getStrengthColor(signal['strength']?.toString() ?? 'weak'),
                   ),
                 ),
               ),
@@ -1270,10 +1397,18 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildBestStrategyTab() {
-    if (simulationData == null) return const SizedBox();
+    if (simulationData is! Map) return const SizedBox();
 
-    final strategy = simulationData!['best_strategy'];
-    final primaryRec = strategy['primary_recommendation'];
+    final strategy = _map(simulationData!['best_strategy']);
+    final primaryRec = _map(strategy['primary_recommendation']);
+    final keyFactors = strategy['key_factors'] is List
+        ? strategy['key_factors'] as List
+        : <dynamic>[];
+    final riskWarnings = strategy['risk_warnings'] is List
+        ? strategy['risk_warnings'] as List
+        : <dynamic>[];
+    final expectedReturn = _num(primaryRec['expected_return']);
+    final confidence = _num(primaryRec['confidence']);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1309,7 +1444,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      primaryRec['action'],
+                      _str(primaryRec['action']),
                       style: context.textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1317,9 +1452,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildStrategyRow('Holding Period', primaryRec['holding_period']),
-                  _buildStrategyRow('Expected Return', '${primaryRec['expected_return'].toStringAsFixed(2)}%'),
-                  _buildStrategyRow('Confidence', '${primaryRec['confidence']}%'),
+                  _buildStrategyRow('Holding Period', _str(primaryRec['holding_period'])),
+                  _buildStrategyRow('Expected Return', expectedReturn == null ? 'N/A' : '${expectedReturn.toStringAsFixed(2)}%'),
+                  _buildStrategyRow('Confidence', confidence == null ? 'N/A' : '${confidence.toStringAsFixed(0)}%'),
                 ],
               ),
             ),
@@ -1333,8 +1468,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
-          ...(strategy['key_factors'] as List).map((factor) => Card(
+          const SizedBox(height, 8),
+          if (keyFactors.isEmpty)
+            Text('No key factors available.', style: context.textTheme.bodyMedium)
+          else
+            ...keyFactors.map((factor) => Card(
             margin: const EdgeInsets.only(bottom: 8),
             elevation: 2,
             shadowColor: Colors.black.withValues(alpha: 0.1),
@@ -1350,10 +1488,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               title: Text(factor.toString()),
             ),
           )),
-          const SizedBox(height: 16),
+          const SizedBox(height, 16),
 
           // Risk Warnings
-          if (strategy['risk_warnings'] != null && (strategy['risk_warnings'] as List).isNotEmpty) ...[
+          if (riskWarnings.isNotEmpty) ...[
             Text(
               'Risk Warnings',
               style: context.textTheme.titleMedium?.copyWith(
@@ -1361,7 +1499,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ...(strategy['risk_warnings'] as List).map((warning) => Card(
+            ...riskWarnings.map((warning) => Card(
               margin: const EdgeInsets.only(bottom: 8),
               elevation: 2,
               shadowColor: Colors.black.withValues(alpha: 0.1),

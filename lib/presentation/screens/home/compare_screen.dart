@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
+import 'package:fl_chart/fl_chart.dart';
+
 import '../../../core/utils/extensions.dart';
 import '../../../core/config/dio_client.dart';
 import '../../../core/config/constants/app_constants.dart';
@@ -13,7 +14,8 @@ class CompareScreen extends ConsumerStatefulWidget {
   ConsumerState<CompareScreen> createState() => _CompareScreenState();
 }
 
-class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTickerProviderStateMixin {
+class _CompareScreenState extends ConsumerState<CompareScreen>
+    with SingleTickerProviderStateMixin {
   String? stock1;
   String? stock2;
   String? stock3;
@@ -21,7 +23,18 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
   late TabController _tabController;
   bool _showResults = false;
   bool _isComparing = false;
+  bool _loadingPrices = false;
   dynamic _comparisonData;
+
+  /// Normalised price series per symbol (indexed to 100 at the start),
+  /// fetched after the compare call for the price-movement chart.
+  final Map<String, List<double>> _priceSeries = {};
+
+  static const List<Color> _seriesColors = [
+    Color(0xFF1E88E5),
+    Color(0xFF43A047),
+    Color(0xFF8E24AA),
+  ];
 
   final Map<String, int> periods = {
     '1 Week': 7,
@@ -41,6 +54,66 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Safe accessors — the API serialises decimals as strings, so every
+  // value that is compared or formatted must be coerced first.
+  // ─────────────────────────────────────────────────────────────────────
+  double? _num(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  String _fmt(dynamic value, {int decimals = 2, String suffix = ''}) {
+    final n = _num(value);
+    if (n == null) return 'N/A';
+    return n.toStringAsFixed(decimals) + suffix;
+  }
+
+  String _str(dynamic value, [String fallback = 'N/A']) {
+    if (value == null) return fallback;
+    return value.toString();
+  }
+
+  Map<String, dynamic> _map(dynamic value) {
+    return value is Map ? value.cast<String, dynamic>() : const <String, dynamic>{};
+  }
+
+  /// Health rating label derived from the 0-100 health score.
+  String _healthRating(dynamic score) {
+    final n = _num(score);
+    if (n == null) return 'No data';
+    if (n >= 75) return 'Excellent';
+    if (n >= 50) return 'Good';
+    if (n >= 30) return 'Fair';
+    return 'Poor';
+  }
+
+  /// The selected symbols in display order (2 or 3).
+  List<String> get _selectedSymbols => [
+        stock1!,
+        stock2!,
+        if (stock3 != null) stock3!,
+      ];
+
+  /// Per-stock entries from the compare response, in selection order.
+  List<Map<String, dynamic>> get _stockEntries {
+    if (_comparisonData is! Map) return const [];
+    final data = _comparisonData as Map<String, dynamic>;
+    final stocks = data['stocks'];
+    if (stocks is! List) return const [];
+    final bySymbol = <String, Map<String, dynamic>>{};
+    for (final raw in stocks.whereType<Map<String, dynamic>>()) {
+      final s = raw['stock'];
+      if (s is Map && s['symbol'] is String) {
+        bySymbol[s['symbol'] as String] = raw;
+      }
+    }
+    return _selectedSymbols
+        .map((symbol) => bySymbol[symbol] ?? const <String, dynamic>{})
+        .toList();
   }
 
   @override
@@ -283,11 +356,12 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     setState(() {
       _isComparing = true;
       _showResults = false;
+      _priceSeries.clear();
     });
 
     try {
       final dio = ref.read(dioProvider);
-      final symbols = [stock1!, stock2!, if (stock3 != null) stock3!];
+      final symbols = _selectedSymbols;
 
       final response = await dio.post(
         ApiEndpoints.compare,
@@ -299,10 +373,15 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
 
       if (mounted) {
         setState(() {
-          _comparisonData = response.data['data'];
+          _comparisonData = response.data is Map ? response.data['data'] : null;
           _showResults = true;
           _isComparing = false;
         });
+      }
+
+      // Fetch the price series for the movement chart (in parallel).
+      if (mounted) {
+        await _loadPriceSeries(symbols, dio);
       }
     } catch (e) {
       if (mounted) {
@@ -311,10 +390,62 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to compare stocks: ${e.toString()}'),
+            content: Text('Failed to compare stocks: ${_extractError(e)}'),
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  String _extractError(dynamic e) {
+    try {
+      final data = e.response?.data;
+      if (data is Map && data['message'] is String) {
+        return data['message'] as String;
+      }
+      final message = e.message;
+      if (message is String && message.isNotEmpty) return message;
+    } catch (_) {}
+    return 'Something went wrong';
+  }
+
+  Future<void> _loadPriceSeries(
+    List<String> symbols,
+    dynamic dio,
+  ) async {
+    setState(() => _loadingPrices = true);
+    try {
+      await Future.wait(symbols.map((symbol) async {
+        try {
+          final response = await dio.get(
+            ApiEndpoints.stockPrices(symbol),
+            queryParameters: {'days': period},
+          );
+          final raw = response.data;
+          final prices =
+              raw is Map && raw['data'] is Map ? raw['data']['prices'] : null;
+          if (prices is List) {
+            final closes = <double>[];
+            for (final p in prices) {
+              if (p is Map) {
+                final close = _num(p['close']);
+                if (close != null) closes.add(close);
+              }
+            }
+            if (closes.length >= 2 && closes.first > 0) {
+              final base = closes.first;
+              _priceSeries[symbol] =
+                  closes.map((c) => (c / base) * 100).toList();
+            }
+          }
+        } catch (_) {
+          // A missing series for one stock must not break the others.
+        }
+      }));
+    } finally {
+      if (mounted) {
+        setState(() => _loadingPrices = false);
       }
     }
   }
@@ -429,20 +560,28 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSignalsForStock(context, 'CRDB', 'CRDB'),
-        const SizedBox(height: 24),
-        _buildSignalsForStock(context, 'DSE', 'DSE'),
-        const SizedBox(height: 24),
-        if (stock3 != null) _buildSignalsForStock(context, stock3!, stock3!),
+        ..._selectedSymbols.asMap().entries.map((entry) {
+          final symbol = entry.value;
+          final entryData =
+              entry.key < _stockEntries.length ? _stockEntries[entry.key] : const <String, dynamic>{};
+          return Column(
+            children: [
+              if (entry.key > 0) const SizedBox(height: 24),
+              _buildSignalsForStock(context, symbol, entryData),
+            ],
+          );
+        }),
       ],
     );
   }
 
   Widget _buildResultBadges(BuildContext context) {
-    if (_comparisonData == null) return const SizedBox.shrink();
+    if (_comparisonData is! Map) return const SizedBox.shrink();
+    final data = _comparisonData as Map<String, dynamic>;
 
-    final bestPicks = _comparisonData['best_picks'];
-    if (bestPicks == null) return const SizedBox.shrink();
+    // The backend returns its picks under 'rankings'.
+    final rankings = data['rankings'];
+    if (rankings is! Map) return const SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -451,23 +590,23 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
             // First row
             Row(
               children: [
-                if (bestPicks['best_overall'] != null)
+                if (rankings['best_overall'] != null)
                   Expanded(
                     child: _buildBadge(
                       context,
                       'BEST OVERALL',
-                      bestPicks['best_overall']['symbol'] ?? '',
+                      _str((rankings['best_overall'] as Map)['symbol']),
                       Colors.amber,
                       Icons.emoji_events,
                     ),
                   ),
                 const SizedBox(width: 12),
-                if (bestPicks['best_value'] != null)
+                if (rankings['best_value'] != null)
                   Expanded(
                     child: _buildBadge(
                       context,
                       'BEST VALUE',
-                      bestPicks['best_value']['symbol'] ?? '',
+                      _str((rankings['best_value'] as Map)['symbol']),
                       Colors.blue,
                       Icons.diamond,
                     ),
@@ -478,23 +617,23 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
             // Second row
             Row(
               children: [
-                if (bestPicks['best_growth'] != null)
+                if (rankings['best_growth'] != null)
                   Expanded(
                     child: _buildBadge(
                       context,
                       'BEST GROWTH',
-                      bestPicks['best_growth']['symbol'] ?? '',
+                      _str((rankings['best_growth'] as Map)['symbol']),
                       Colors.purple,
                       Icons.rocket_launch,
                     ),
                   ),
                 const SizedBox(width: 12),
-                if (bestPicks['safest_pick'] != null)
+                if (rankings['safest_pick'] != null)
                   Expanded(
                     child: _buildBadge(
                       context,
                       'SAFEST PICK',
-                      bestPicks['safest_pick']['symbol'] ?? '',
+                      _str((rankings['safest_pick'] as Map)['symbol']),
                       Colors.green,
                       Icons.shield,
                     ),
@@ -508,30 +647,29 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
   }
 
   Widget _buildStockCards(BuildContext context) {
-    if (_comparisonData == null) return const SizedBox.shrink();
+    final entries = _stockEntries;
+    if (entries.isEmpty) return const SizedBox.shrink();
 
-    final stocksList = _comparisonData['stocks'] as List<dynamic>?;
-    if (stocksList == null || stocksList.isEmpty) return const SizedBox.shrink();
-
-    // Single cards stacked vertically
     return Column(
-      children: stocksList.map<Widget>((stockData) {
+      children: entries.map<Widget>((stockData) {
         return _buildStockCard(context, stockData);
       }).toList(),
     );
   }
 
-  Widget _buildStockCard(BuildContext context, dynamic stockData) {
-    final stock = stockData['stock'];
-    final symbol = stock['symbol'] ?? '';
-    final name = stock['name'] ?? '';
-    final recommendation = stockData['recommendation'];
-    final action = recommendation['action'] ?? 'N/A';
-    final score = recommendation['score'] ?? 0;
-    final breakdown = recommendation['breakdown'];
-    final technicalScore = breakdown?['technical_score'] ?? 0;
-    final fundamentalScore = breakdown?['fundamental_score'] ?? 0;
-    final summary = recommendation['summary'] ?? 'No data available';
+  Widget _buildStockCard(BuildContext context, Map<String, dynamic> stockData) {
+    final stock = _map(stockData['stock']);
+    final symbol = _str(stock['symbol']);
+    final name = _str(stock['name']);
+    final recommendation = _map(stockData['recommendation']);
+    final action = _str(recommendation['action'], 'N/A');
+    final score = _num(recommendation['score']);
+    final breakdown = _map(recommendation['breakdown']);
+    final technicalScore = _num(breakdown['technical_score']);
+    final fundamentalScore = _num(breakdown['fundamental_score']);
+    final summary = _str(recommendation['summary'], 'No data available');
+
+    if (symbol.isEmpty) return const SizedBox.shrink();
 
     // Determine status color based on action
     Color statusColor;
@@ -618,11 +756,12 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
               ),
             ),
             const SizedBox(height: 16),
-            _buildScoreRow(context, 'Overall Score', score, 100),
+            _buildScoreRow(
+                context, 'Overall Score', score?.toStringAsFixed(1) ?? 'N/A'),
             const SizedBox(height: 8),
-            _buildScoreRow(context, 'Technical', technicalScore, 50),
+            _buildScoreRow(context, 'Technical', _fmt(technicalScore, decimals: 1)),
             const SizedBox(height: 8),
-            _buildScoreRow(context, 'Fundamental', fundamentalScore, 50),
+            _buildScoreRow(context, 'Fundamental', _fmt(fundamentalScore, decimals: 1)),
             const SizedBox(height: 16),
             Text(
               summary,
@@ -639,13 +778,13 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
-  Widget _buildScoreRow(BuildContext context, String label, int score, int maxScore) {
+  Widget _buildScoreRow(BuildContext context, String label, String score) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: context.textTheme.bodySmall),
         Text(
-          '$score/$maxScore',
+          score,
           style: context.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -654,33 +793,30 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
+  String _columnValue(int index, String Function(Map<String, dynamic>) getter) {
+    if (index >= _stockEntries.length) return '';
+    return getter(_stockEntries[index]);
+  }
+
   Widget _buildKeyMetricsTable(BuildContext context) {
-    if (_comparisonData == null) return const SizedBox.shrink();
+    if (_stockEntries.isEmpty) return const SizedBox.shrink();
 
-    final stocksList = _comparisonData['stocks'] as List<dynamic>?;
-    if (stocksList == null || stocksList.isEmpty) return const SizedBox.shrink();
-
-    // Extract values for each stock
-    final values = stocksList.map((stockData) {
-      final technical = stockData['technical'];
-      final fundamental = stockData['fundamental'];
-
-      final currentPrice = technical?['current_price']?.toString() ?? 'N/A';
-      final periodChange = technical?['period_change'];
-      final changePercent = periodChange?['percent']?.toString() ?? '0';
-      final healthScore = fundamental?['health_score']?.toString() ?? 'N/A';
-      final healthRating = fundamental?['health_rating'] ?? 'Unknown';
-
-      final changeValue = double.tryParse(changePercent) ?? 0;
-      final changeColor = changeValue >= 0 ? Colors.green : Colors.red;
-
-      return {
-        'price': '$currentPrice TZS',
-        'change': '$changePercent%',
-        'changeColor': changeColor,
-        'health': healthScore != 'N/A' ? '$healthScore%\n$healthRating' : 'N/A',
-      };
-    }).toList();
+    String price(Map<String, dynamic> e) => _fmt(e['price'], suffix: ' TZS');
+    String change(Map<String, dynamic> e) {
+      final technical = _map(e['technical']);
+      return _fmt(technical['change_percent'], suffix: '%');
+    }
+    Color changeColor(Map<String, dynamic> e) {
+      final technical = _map(e['technical']);
+      final v = _num(technical['change_percent']);
+      return v == null ? Colors.grey : (v >= 0 ? Colors.green : Colors.red);
+    }
+    String health(Map<String, dynamic> e) {
+      final fundamental = _map(e['fundamental']);
+      final score = _num(fundamental['health_score']);
+      if (score == null) return 'N/A';
+      return '${score.toStringAsFixed(0)}%\n${_healthRating(score)}';
+    }
 
     return Card(
       elevation: 2,
@@ -708,30 +844,30 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
             _buildMetricTableRow(
               context,
               'Current Price',
-              values[0]['price'] as String,
-              values.length > 1 ? values[1]['price'] as String : '',
-              values.length > 2 ? values[2]['price'] as String : '',
+              _columnValue(0, price),
+              _columnValue(1, price),
+              _columnValue(2, price),
             ),
             const Divider(),
             _buildMetricTableRow(
               context,
               '$period-Day Change',
-              values[0]['change'] as String,
-              values.length > 1 ? values[1]['change'] as String : '',
-              values.length > 2 ? values[2]['change'] as String : '',
+              _columnValue(0, change),
+              _columnValue(1, change),
+              _columnValue(2, change),
               valueColors: [
-                values[0]['changeColor'] as Color,
-                if (values.length > 1) values[1]['changeColor'] as Color else null,
-                if (values.length > 2) values[2]['changeColor'] as Color else null,
+                changeColor(_stockEntries[0]),
+                _stockEntries.length > 1 ? changeColor(_stockEntries[1]) : null,
+                _stockEntries.length > 2 ? changeColor(_stockEntries[2]) : null,
               ],
             ),
             const Divider(),
             _buildMetricTableRow(
               context,
               'Financial Health',
-              values[0]['health'] as String,
-              values.length > 1 ? values[1]['health'] as String : '',
-              values.length > 2 ? values[2]['health'] as String : '',
+              _columnValue(0, health),
+              _columnValue(1, health),
+              _columnValue(2, health),
             ),
           ],
         ),
@@ -786,7 +922,65 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
+  /// Real, computed highlights — no hard-coded figures.
   Widget _buildDetailedAnalysisSection(BuildContext context) {
+    double? volOf(Map<String, dynamic> e) =>
+        _num(_map(e['technical'])['volatility']);
+    double? roeOf(Map<String, dynamic> e) {
+      final metrics = _map(_map(e['fundamental'])['metrics']);
+      return _num(_map(metrics['profitability'])['roe']);
+    }
+    double? changeOf(Map<String, dynamic> e) =>
+        _num(_map(e['technical'])['change_percent']);
+    String symbolOf(Map<String, dynamic> e) =>
+        _str(_map(e['stock'])['symbol']);
+
+    final withTechnical =
+        _stockEntries.where((e) => volOf(e) != null).toList();
+    final withRoeList = _stockEntries.where((e) => roeOf(e) != null).toList();
+    final negativeMovers = _stockEntries
+        .where((e) => changeOf(e) != null && changeOf(e)! < 0)
+        .toList();
+
+    final stable = withTechnical.isNotEmpty
+        ? withTechnical.reduce((a, b) => (volOf(a)! <= volOf(b)!) ? a : b)
+        : null;
+    final bestRoe = withRoeList.isNotEmpty
+        ? withRoeList.reduce((a, b) => (roeOf(a)! >= roeOf(b)!) ? a : b)
+        : null;
+    final weakestStock = negativeMovers.isNotEmpty
+        ? negativeMovers.reduce((a, b) => (changeOf(a)! <= changeOf(b)!) ? a : b)
+        : null;
+
+    final items = <_AnalysisHighlight>[];
+    if (stable != null) {
+      items.add(_AnalysisHighlight(
+        icon: Icons.shield,
+        iconColor: Colors.green,
+        title: 'Most Stable',
+        description: '${symbolOf(stable)} has the lowest volatility at ${_fmt(volOf(stable), suffix: '%')}.',
+      ));
+    }
+    if (bestRoe != null) {
+      items.add(_AnalysisHighlight(
+        icon: Icons.monetization_on,
+        iconColor: Colors.amber,
+        title: 'Profitability Leader',
+        description: '${symbolOf(bestRoe)} leads the comparison with ${_fmt(roeOf(bestRoe), suffix: '%')} ROE.',
+      ));
+    }
+    if (weakestStock != null) {
+      items.add(_AnalysisHighlight(
+        icon: Icons.warning_amber_rounded,
+        iconColor: Colors.orange,
+        title: 'Weakest Mover',
+        description:
+            '${symbolOf(weakestStock)} is down ${_fmt(changeOf(weakestStock))}% over the selected period.',
+      ));
+    }
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
     return Card(
       color: Colors.grey[50],
       elevation: 2,
@@ -816,29 +1010,21 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
               ],
             ),
             const SizedBox(height: 20),
-            _buildAnalysisItem(
-              context,
-              icon: Icons.shield,
-              iconColor: Colors.green,
-              title: 'Risk Analysis',
-              description: 'CRDB is safest with 0.8% volatility',
-            ),
-            const SizedBox(height: 16),
-            _buildAnalysisItem(
-              context,
-              icon: Icons.monetization_on,
-              iconColor: Colors.amber,
-              title: 'Profitability Leader',
-              description: 'CRDB leads profitability with 27.89% ROE',
-            ),
-            const SizedBox(height: 16),
-            _buildAnalysisItem(
-              context,
-              icon: Icons.warning_amber_rounded,
-              iconColor: Colors.orange,
-              title: 'Avoid',
-              description: 'AFRIPRISE shows weakness: -5.3% price decline',
-            ),
+            ...items.asMap().entries.map((entry) {
+              final item = entry.value;
+              return Column(
+                children: [
+                  if (entry.key > 0) const SizedBox(height: 16),
+                  _buildAnalysisItem(
+                    context,
+                    icon: item.icon,
+                    iconColor: item.iconColor,
+                    title: item.title,
+                    description: item.description,
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -882,7 +1068,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
+  /// Normalised (indexed to 100) price movement for the selected period.
   Widget _buildPriceMovementChart(BuildContext context) {
+    final symbolsWithSeries =
+        _selectedSymbols.where((s) => !_seriesIsEmpty(s)).toList();
+
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withValues(alpha: 0.1),
@@ -904,39 +1094,172 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 20),
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.show_chart, size: 64, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Price Movement Chart',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Integrate fl_chart or similar library for line chart',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                    ),
-                  ],
-                ),
+            Text(
+              'Indexed to 100 at the start of the selected period',
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
+            const SizedBox(height: 20),
+            if (_loadingPrices)
+              const SizedBox(
+                height: 260,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (symbolsWithSeries.isEmpty)
+              Container(
+                height: 260,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Text(
+                    'No price data available for this period',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else ...[
+              SizedBox(
+                height: 260,
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: context.colorScheme.onSurface.withValues(alpha: 0.1),
+                        strokeWidth: 1,
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: 10,
+                          reservedSize: 36,
+                          getTitlesWidget: (value, meta) => Text(
+                            value.toInt().toString(),
+                            style: context.textTheme.bodySmall,
+                          ),
+                        ),
+                      ),
+                      bottomTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border.all(
+                        color: context.colorScheme.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    minY: _minIndex(symbolsWithSeries) - 2,
+                    maxY: _maxIndex(symbolsWithSeries) + 2,
+                    lineBarsData: [
+                      for (int i = 0; i < symbolsWithSeries.length; i++)
+                        LineChartBarData(
+                          spots: List.generate(
+                            _priceSeries[symbolsWithSeries[i]]!.length,
+                            (x) => FlSpot(
+                              x.toDouble(),
+                              _priceSeries[symbolsWithSeries[i]]![x],
+                            ),
+                          ),
+                          isCurved: true,
+                          color: _seriesColors[i % _seriesColors.length],
+                          barWidth: 2.5,
+                          isStrokeCapRound: true,
+                          dotData: const FlDotData(show: false),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 16,
+                children: [
+                  for (int i = 0; i < symbolsWithSeries.length; i++)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _seriesColors[i % _seriesColors.length],
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          symbolsWithSeries[i],
+                          style: context.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
+  bool _seriesIsEmpty(String symbol) {
+    final series = _priceSeries[symbol];
+    return series == null || series.isEmpty;
+  }
+
+  double _minIndex(List<String> symbols) {
+    double min = double.infinity;
+    for (final s in symbols) {
+      for (final v in _priceSeries[s]!) {
+        if (v < min) min = v;
+      }
+    }
+    return min;
+  }
+
+  double _maxIndex(List<String> symbols) {
+    double max = double.negativeInfinity;
+    for (final s in symbols) {
+      for (final v in _priceSeries[s]!) {
+        if (v > max) max = v;
+      }
+    }
+    return max;
+  }
+
   Widget _buildTechnicalMetricsTable(BuildContext context) {
+    if (_stockEntries.isEmpty) return const SizedBox.shrink();
+
+    String volatility(Map<String, dynamic> e) {
+      final v = _num(_map(e['technical'])['volatility']);
+      if (v == null) return 'N/A';
+      final level = v < 1 ? 'Low' : (v < 5 ? 'Medium' : 'High');
+      return '${v.toStringAsFixed(2)}%\n$level';
+    }
+
+    String holdingPattern(Map<String, dynamic> e, String key) {
+      final stats = _map(_map(e['technical'])['holding_stats']);
+      final s = _map(stats[key]);
+      final gain = _num(s['avg_gain']);
+      final success = _num(s['success_rate']);
+      if (gain == null && success == null) return 'N/A';
+      return '${gain == null ? 'N/A' : gain.toStringAsFixed(2)}%\nSuccess: ${success == null ? 'N/A' : success.toStringAsFixed(1)}%';
+    }
+
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withValues(alpha: 0.1),
@@ -960,13 +1283,29 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
               ),
             ),
             const SizedBox(height: 20),
-            _buildTechnicalMetricRow(context, 'Volatility', '0.81%\nLow', '3.65%\nMedium', '4.14%\nMedium'),
+            _buildTechnicalMetricRow(
+              context,
+              'Volatility',
+              _columnValue(0, volatility),
+              _columnValue(1, volatility),
+              _columnValue(2, volatility),
+            ),
             const Divider(),
-            _buildTechnicalMetricRow(context, '52-Week Range', '630 - 1,640\nCurrent: 52%', '2,180 - 6,700\nCurrent: 82%', '200 - 585\nCurrent: 64%'),
+            _buildTechnicalMetricRow(
+              context,
+              '1-Week Pattern',
+              _columnValue(0, (e) => holdingPattern(e, '1w')),
+              _columnValue(1, (e) => holdingPattern(e, '1w')),
+              _columnValue(2, (e) => holdingPattern(e, '1w')),
+            ),
             const Divider(),
-            _buildTechnicalMetricRow(context, '1-Week Pattern', '-0.66%\nSuccess: 30%', '-0.69%\nSuccess: 41.38%', '-1.86%\nSuccess: 31.03%'),
-            const Divider(),
-            _buildTechnicalMetricRow(context, 'Avg Daily Volume', '577.02K', '7.74K', '195.66K'),
+            _buildTechnicalMetricRow(
+              context,
+              '1-Month Pattern',
+              _columnValue(0, (e) => holdingPattern(e, '1m')),
+              _columnValue(1, (e) => holdingPattern(e, '1m')),
+              _columnValue(2, (e) => holdingPattern(e, '1m')),
+            ),
           ],
         ),
       ),
@@ -1014,6 +1353,42 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
   }
 
   Widget _buildFundamentalMetricsTable(BuildContext context) {
+    if (_stockEntries.isEmpty) return const SizedBox.shrink();
+
+    dynamic metricValue(Map<String, dynamic> e, String path) {
+      final metrics = _map(_map(e['fundamental'])['metrics']);
+      final parts = path.split('.');
+      dynamic node = metrics;
+      for (final part in parts) {
+        if (node is Map) {
+          node = node[part];
+        } else {
+          return null;
+        }
+      }
+      return node;
+    }
+
+    String pe(Map<String, dynamic> e) =>
+        _fmt(metricValue(e, 'valuation.pe_ratio'));
+    String pb(Map<String, dynamic> e) =>
+        _fmt(metricValue(e, 'valuation.pb_ratio'));
+    String roe(Map<String, dynamic> e) =>
+        _fmt(metricValue(e, 'profitability.roe'), suffix: '%');
+    String de(Map<String, dynamic> e) {
+      final metrics = _map(_map(e['fundamental'])['metrics']);
+      final meta = _map(metrics['_meta']);
+      // Banks have no leverage group; showing '—' is honest.
+      if (meta['industry_type'] == 'banking') return '— (bank)';
+      return _fmt(metricValue(e, 'leverage.debt_to_equity'));
+    }
+    String dy(Map<String, dynamic> e) =>
+        _fmt(metricValue(e, 'valuation.dividend_yield'), suffix: '%');
+    String mos(Map<String, dynamic> e) {
+      final valuation = _map(_map(e['fundamental'])['valuation']);
+      return _fmt(valuation['margin_of_safety'], suffix: '%');
+    }
+
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withValues(alpha: 0.1),
@@ -1037,15 +1412,17 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
               ),
             ),
             const SizedBox(height: 20),
-            _buildMetricTableRow(context, 'P/E Ratio', '5.5', 'N/A', 'N/A'),
+            _buildMetricTableRow(context, 'P/E Ratio', _columnValue(0, pe), _columnValue(1, pe), _columnValue(2, pe)),
             const Divider(),
-            _buildMetricTableRow(context, 'ROE', '27.89%', 'N/A', 'N/A'),
+            _buildMetricTableRow(context, 'P/B Ratio', _columnValue(0, pb), _columnValue(1, pb), _columnValue(2, pb)),
             const Divider(),
-            _buildMetricTableRow(context, 'Debt-to-Equity', '6.68', 'N/A', 'N/A'),
+            _buildMetricTableRow(context, 'ROE', _columnValue(0, roe), _columnValue(1, roe), _columnValue(2, roe)),
             const Divider(),
-            _buildMetricTableRow(context, 'Profit Margin', '27%', 'N/A', 'N/A'),
+            _buildMetricTableRow(context, 'Debt-to-Equity', _columnValue(0, de), _columnValue(1, de), _columnValue(2, de)),
             const Divider(),
-            _buildMetricTableRow(context, 'Dividend Yield', '5.6%', 'N/A', 'N/A'),
+            _buildMetricTableRow(context, 'Dividend Yield', _columnValue(0, dy), _columnValue(1, dy), _columnValue(2, dy)),
+            const Divider(),
+            _buildMetricTableRow(context, 'Margin of Safety', _columnValue(0, mos), _columnValue(1, mos), _columnValue(2, mos)),
           ],
         ),
       ),
@@ -1055,88 +1432,47 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
   Widget _buildPredictionCards(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use column layout for small screens
-        if (constraints.maxWidth < 600) {
+        final children = _selectedSymbols.asMap().entries
+            .map((entry) {
+              final entryData = entry.key < _stockEntries.length
+                  ? _stockEntries[entry.key]
+                  : const <String, dynamic>{};
+              final fundamental = _map(entryData['fundamental']);
+              final prediction = _map(fundamental['prediction']);
+              final stock = _map(entryData['stock']);
+              return _buildPredictionCard(
+                context,
+                _str(stock['symbol'], 'Stock ${entry.key + 1}'),
+                currentPrice: _fmt(entryData['price']),
+                target: _fmt(prediction['predicted_price']),
+                expectedChange: _fmt(prediction['expected_change_percent'], suffix: '%'),
+                conservative: _fmt(prediction['conservative_price']),
+                optimistic: _fmt(prediction['optimistic_price']),
+                confidence: prediction['confidence']?.toString(),
+                hasData: prediction.isNotEmpty,
+              );
+            })
+            .toList();
+
+        // Use column layout on small screens, row on larger screens
+        if (constraints.maxWidth < 600 || children.length > 2) {
           return Column(
             children: [
-              _buildPredictionCard(
-                context,
-                'CRDB',
-                currentPrice: '1,160',
-                target: '1,176.51',
-                expectedChange: '+1.4%',
-                conservative: '1,058.86',
-                optimistic: '1,294.16',
-                confidence: 'high',
-              ),
-              const SizedBox(height: 16),
-              _buildPredictionCard(
-                context,
-                'DSE',
-                currentPrice: null,
-                target: null,
-                expectedChange: null,
-                conservative: null,
-                optimistic: null,
-                confidence: null,
-              ),
-              const SizedBox(height: 16),
-              _buildPredictionCard(
-                context,
-                'AFRIPRISE',
-                currentPrice: null,
-                target: null,
-                expectedChange: null,
-                conservative: null,
-                optimistic: null,
-                confidence: null,
-              ),
+              for (int i = 0; i < children.length; i++) ...[
+                if (i > 0) const SizedBox(height: 16),
+                children[i],
+              ],
             ],
           );
         }
 
-        // Use row layout for larger screens
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _buildPredictionCard(
-                context,
-                'CRDB',
-                currentPrice: '1,160',
-                target: '1,176.51',
-                expectedChange: '+1.4%',
-                conservative: '1,058.86',
-                optimistic: '1,294.16',
-                confidence: 'high',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildPredictionCard(
-                context,
-                'DSE',
-                currentPrice: null,
-                target: null,
-                expectedChange: null,
-                conservative: null,
-                optimistic: null,
-                confidence: null,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildPredictionCard(
-                context,
-                'AFRIPRISE',
-                currentPrice: null,
-                target: null,
-                expectedChange: null,
-                conservative: null,
-                optimistic: null,
-                confidence: null,
-              ),
-            ),
+            for (int i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(width: 16),
+              Expanded(child: children[i]),
+            ],
           ],
         );
       },
@@ -1152,6 +1488,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     String? conservative,
     String? optimistic,
     String? confidence,
+    bool hasData = false,
   }) {
     return Card(
       elevation: 2,
@@ -1175,7 +1512,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
               ),
             ),
             const SizedBox(height: 20),
-            if (currentPrice != null) ...[
+            if (hasData) ...[
               Text(
                 'Current Price',
                 style: context.textTheme.bodySmall?.copyWith(
@@ -1183,7 +1520,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 ),
               ),
               Text(
-                currentPrice,
+                currentPrice ?? 'N/A',
                 style: context.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -1196,7 +1533,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 ),
               ),
               Text(
-                target!,
+                target ?? 'N/A',
                 style: context.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.blue,
@@ -1210,7 +1547,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 ),
               ),
               Text(
-                expectedChange!,
+                expectedChange ?? 'N/A',
                 style: context.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
@@ -1221,7 +1558,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Conservative', style: context.textTheme.bodySmall),
-                  Text(conservative!, style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(conservative ?? 'N/A', style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1229,7 +1566,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Optimistic', style: context.textTheme.bodySmall),
-                  Text(optimistic!, style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(optimistic ?? 'N/A', style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 16),
@@ -1244,7 +1581,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      confidence!,
+                      (confidence ?? 'unknown')
+                          .split('')
+                          .map((c) => c.toUpperCase())
+                          .join()
+                          .toLowerCase(),
                       style: TextStyle(
                         color: Colors.green,
                         fontWeight: FontWeight.w600,
@@ -1259,7 +1600,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Text(
-                    'No prediction data available',
+                    'No prediction data available for this stock',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                 ),
@@ -1271,10 +1612,20 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
-  Widget _buildSignalsForStock(BuildContext context, String stockName, String stockCode) {
-    final signals = _getSignalsData(stockCode);
-    final positiveSignals = signals['positive'] ?? [];
-    final warningSignals = signals['warning'] ?? [];
+  Widget _buildSignalsForStock(
+      BuildContext context, String stockCode, Map<String, dynamic> stockEntry) {
+    final fundamental = _map(stockEntry['fundamental']);
+    final signals = _map(fundamental['signals']);
+    final greenFlags = signals['green_flags'] is List
+        ? signals['green_flags']
+            .whereType<Map<String, dynamic>>()
+            .toList()
+        : <Map<String, dynamic>>[];
+    final redFlags = signals['red_flags'] is List
+        ? signals['red_flags']
+            .whereType<Map<String, dynamic>>()
+            .toList()
+        : <Map<String, dynamic>>[];
 
     return Card(
       elevation: 2,
@@ -1292,25 +1643,25 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$stockName - $stockCode',
+              stockCode,
               style: context.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 20),
-            if (positiveSignals.isEmpty && warningSignals.isEmpty) ...[
+            if (greenFlags.isEmpty && redFlags.isEmpty) ...[
               Text(
-                'No signal data available',
+                'No signal data available for this stock',
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ] else ...[
-              if (positiveSignals.isNotEmpty) ...[
+              if (greenFlags.isNotEmpty) ...[
                 Row(
                   children: [
                     const Icon(Icons.check_circle, color: Colors.green, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Positive Signals (${positiveSignals.length})',
+                      'Positive Signals (${greenFlags.length})',
                       style: context.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.green,
@@ -1319,16 +1670,16 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...positiveSignals.map((signal) => _buildSignalCard(context, signal, Colors.green)),
+                ...greenFlags.map((signal) => _buildSignalCard(context, signal, Colors.green)),
                 const SizedBox(height: 20),
-              ],
-              if (warningSignals.isNotEmpty) ...[
+              ]
+              if (redFlags.isNotEmpty) ...[
                 Row(
                   children: [
                     const Icon(Icons.cancel, color: Colors.red, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Warning Signals (${warningSignals.length})',
+                      'Warning Signals (${redFlags.length})',
                       style: context.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.red,
@@ -1337,8 +1688,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...warningSignals.map((signal) => _buildSignalCard(context, signal, Colors.red)),
-              ],
+                ...redFlags.map((signal) => _buildSignalCard(context, signal, Colors.red)),
+              ]
             ],
           ],
         ),
@@ -1346,35 +1697,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
-  Map<String, List<Map<String, String>>> _getSignalsData(String stockCode) {
-    final data = <String, Map<String, List<Map<String, String>>>>{
-      'CRDB': {
-        'positive': <Map<String, String>>[
-          {'title': 'Strong Margin of Safety', 'description': 'Stock has 41.6% margin of safety, providing downside protection.'},
-          {'title': 'Low P/E Ratio', 'description': 'P/E of 5.5 suggests the stock may be undervalued relative to earnings.'},
-          {'title': 'High Return on Equity', 'description': 'ROE of 27.89% indicates excellent profitability.'},
-          {'title': 'High Profit Margin', 'description': 'Net profit margin of 27% indicates strong pricing power.'},
-          {'title': 'Attractive Dividend Yield', 'description': 'Dividend yield of 5.6% provides income while you hold.'},
-        ],
-        'warning': <Map<String, String>>[
-          {'title': 'High Debt Level', 'description': 'Debt-to-equity of 6.68 indicates high financial risk.'},
-          {'title': 'Liquidity Concerns', 'description': 'Current ratio below 1 indicates potential short-term payment issues.'},
-        ],
-      },
-      'DSE': {
-        'positive': <Map<String, String>>[],
-        'warning': <Map<String, String>>[],
-      },
-      'AFRIPRISE': {
-        'positive': <Map<String, String>>[],
-        'warning': <Map<String, String>>[],
-      },
-    };
-
-    return data[stockCode] ?? {'positive': <Map<String, String>>[], 'warning': <Map<String, String>>[]};
-  }
-
-  Widget _buildSignalCard(BuildContext context, Map<String, String> signal, Color color) {
+  Widget _buildSignalCard(BuildContext context, Map<String, dynamic> signal, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1387,7 +1710,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            signal['title']!,
+            _str(signal['title']),
             style: context.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: color,
@@ -1395,7 +1718,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
           ),
           const SizedBox(height: 4),
           Text(
-            signal['description']!,
+            _str(signal['description'], ''),
             style: context.textTheme.bodySmall?.copyWith(
               color: Colors.grey[700],
             ),
@@ -1443,38 +1766,68 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
     );
   }
 
+  /// Derived from the real scores — a warning when the comparison contains
+  /// weak stocks, otherwise a positive note.
   Widget _buildMarketCautionCard(BuildContext context) {
+    if (_stockEntries.isEmpty) return const SizedBox.shrink();
+
+    final weak = _stockEntries.where((e) {
+      final score = _num(_map(e['fundamental'])['health_score']);
+      final action = _str(_map(_map(e['recommendation'])['action']), '');
+      return (score != null && score < 40) ||
+          action.toLowerCase() == 'avoid' ||
+          action.toLowerCase() == 'caution';
+    }).toList();
+
+    final (title, body, color) = weak.isEmpty
+        ? (
+            'MARKET OUTLOOK',
+            'All selected stocks show acceptable fundamental health for the selected period.',
+            Colors.green,
+          )
+        : (
+            'MARKET CAUTION',
+            '${weak.length} of ${_stockEntries.length} selected stock${weak.length > 1 ? 's' : ''} show${weak.length > 1 ? '' : 's'} weak signals'
+                ' (${weak.map((e) => _str(_map(e['stock'])['symbol'])).join(', ')}). '
+                'Consider waiting for better opportunities.',
+            Colors.amber,
+          );
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.amber.withValues(alpha: 0.5),
+          color: color.withValues(alpha: 0.5),
           width: 1.5,
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.amber[700], size: 28),
+          Icon(
+            color == Colors.amber ? Icons.warning_amber_rounded : Icons.check_circle,
+            color: color[700] ?? color,
+            size: 28,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'MARKET CAUTION',
+                  title,
                   style: context.textTheme.titleSmall?.copyWith(
-                    color: Colors.amber[900],
+                    color: color[900] ?? color,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'All stocks show weak signals. CRDB is least risky at 36/100 score. Consider waiting for better opportunities.',
+                  body,
                   style: context.textTheme.bodyMedium?.copyWith(
-                    color: Colors.amber[900],
+                    color: color[900] ?? color,
                   ),
                 ),
               ],
@@ -1484,4 +1837,18 @@ class _CompareScreenState extends ConsumerState<CompareScreen> with SingleTicker
       ),
     );
   }
+}
+
+class _AnalysisHighlight {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String description;
+
+  _AnalysisHighlight({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+  });
 }
