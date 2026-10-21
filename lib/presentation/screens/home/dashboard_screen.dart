@@ -10,11 +10,11 @@ import '../../../core/utils/formatters.dart';
 import '../../../domain/entities/stock_entity.dart';
 import '../../providers/app_providers.dart';
 import '../portfolio/portfolio_sheets.dart';
-import 'components/quick_action_card.dart';
 
-/// Home dashboard — investment-first layout:
-/// greeting + market status, portfolio hero (with quick add/sell),
-/// stocks up/down, quick actions, market summary and top movers.
+/// Home dashboard — compact, investment-first layout matching the design
+/// template: gradient backdrop, dark gradient hero with circular quick
+/// actions, compact up/down cards, single-row quick actions, tight market
+/// summary and top-movers table.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -33,18 +33,19 @@ class DashboardScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(28),
           onTap: () => context.push('/kodalens'),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: const [
-                Icon(Icons.explore, color: Colors.white),
-                SizedBox(width: 8),
+                Icon(Icons.explore, color: Colors.white, size: 18),
+                SizedBox(width: 6),
                 Text(
                   'KODA LENS',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
+                    fontSize: 12,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ],
@@ -57,16 +58,21 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             Image.asset(
               'assets/images/white_logo.png',
-              height: 24,
+              height: 22,
               fit: BoxFit.contain,
             ),
             const SizedBox(width: 8),
-            Text('KodaStock'),
+            Text(
+              'KodaStock',
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: const Icon(Icons.notifications_outlined, size: 20),
             onPressed: () => context.push('/notifications'),
           ),
           IconButton(
@@ -74,6 +80,7 @@ class DashboardScreen extends ConsumerWidget {
               ref.watch(isDarkModeProvider)
                   ? Icons.light_mode_outlined
                   : Icons.dark_mode_outlined,
+              size: 20,
             ),
             onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
           ),
@@ -87,37 +94,46 @@ class DashboardScreen extends ConsumerWidget {
                     ? '${nameParts[0][0]}${nameParts[1][0]}'
                     : nameParts[0].substring(0, 2);
                 return CircleAvatar(
-                  radius: 16,
+                  radius: 15,
                   backgroundColor: context.colorScheme.primary,
                   child: Text(
                     initials.toUpperCase(),
-                    style: context.textTheme.labelMedium?.copyWith(
+                    style: context.textTheme.labelSmall?.copyWith(
                       color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 );
               },
               loading: () => CircleAvatar(
-                radius: 16,
+                radius: 15,
                 backgroundColor: context.colorScheme.primary,
               ),
               error: (_, __) => CircleAvatar(
-                radius: 16,
+                radius: 15,
                 backgroundColor: context.colorScheme.primary,
-                child: const Icon(Icons.person, size: 16, color: Colors.white),
+                child: const Icon(Icons.person, size: 14, color: Colors.white),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
         ],
       ),
       body: dashboardAsync.when(
-        data: (dashboard) => _buildContent(
-          context,
-          ref,
-          dashboard,
-          userAsync,
-          portfolioAsync,
+        data: (dashboard) => DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0.0, 0.3],
+              colors: [
+                const Color(0xFF10B981).withValues(alpha: 0.12),
+                const Color(0xFF10B981).withValues(alpha: 0.0),
+              ],
+            ),
+          ),
+          child: _buildContent(context, ref, dashboard, userAsync,
+              portfolioAsync),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -164,22 +180,22 @@ class DashboardScreen extends ConsumerWidget {
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildGreeting(context, userAsync),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildPortfolioHero(context, ref, portfolioAsync),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildUpDownCards(context, dashboard),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildQuickActions(context),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildMarketSummary(context, dashboard),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildMarketOverview(context, dashboard),
-            const SizedBox(height: 96),
+            const SizedBox(height: 84),
           ],
         ),
       ),
@@ -208,24 +224,26 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             Text(
               'Welcome back, $first! 👋',
-              style: context.textTheme.headlineSmall?.copyWith(
+              style: context.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               "Here's what's happening with your investments today.",
               style: context.textTheme.bodySmall?.copyWith(
-                color: context.colorScheme.onSurface.withValues(alpha: 0.65),
+                color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 12,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Text(
                   DateFormat('EEEE, MMMM d, yyyy').format(now),
                   style: context.textTheme.bodySmall?.copyWith(
-                    color: context.colorScheme.onSurface.withValues(alpha: 0.65),
+                    color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 11,
                   ),
                 ),
                 const Spacer(),
@@ -235,7 +253,7 @@ class DashboardScreen extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const SizedBox(height: 72),
+      loading: () => const SizedBox(height: 64),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -243,7 +261,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget _marketBadge(BuildContext context, bool open) {
     final color = open ? Colors.green : Colors.red;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
@@ -253,16 +271,16 @@ class DashboardScreen extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 7,
-            height: 7,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           Text(
             open ? 'Market Open' : 'Market Closed',
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -339,18 +357,19 @@ class DashboardScreen extends ConsumerWidget {
               Text(
                 'Value • Performance',
                 style: context.textTheme.labelSmall?.copyWith(
-                  color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w600,
+                  fontSize: 11,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               _PortfolioValue(value: totalValue),
-              const SizedBox(height: 2),
+              const SizedBox(height: 0),
               Row(
                 children: [
                   Icon(
                     positive ? Icons.arrow_upward : Icons.arrow_downward,
-                    size: 18,
+                    size: 16,
                     color: gainColor,
                   ),
                   const SizedBox(width: 4),
@@ -360,34 +379,33 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(
                       color: gainColor,
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
-              if (active.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                ...active.take(2).map((t) => _holdingQuickAction(
-                      context,
-                      sheets,
-                      t,
-                    )),
-              ] else
+              if (active.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: _holdingsActionsRow(context, sheets, active),
+                )
+              else
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Row(
                     children: [
                       Icon(
                         Icons.shopping_bag_outlined,
-                        size: 18,
-                        color:
-                            context.colorScheme.onSurface.withValues(alpha: 0.5),
+                        size: 16,
+                        color: context.colorScheme.onSurface
+                            .withValues(alpha: 0.5),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'No holdings yet — add your first purchase.',
                           style: context.textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
                             color: context.colorScheme.onSurface
                                 .withValues(alpha: 0.6),
                           ),
@@ -403,27 +421,29 @@ class DashboardScreen extends ConsumerWidget {
       loading: () => _heroCard(
         context,
         child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
+          padding: EdgeInsets.symmetric(vertical: 20),
           child: Center(child: CircularProgressIndicator()),
         ),
       ),
       error: (_, __) => _heroCard(
         context,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   'Portfolio is unavailable right now.',
                   style: context.textTheme.bodySmall?.copyWith(
-                    color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    color: context.colorScheme.onSurface
+                        .withValues(alpha: 0.6),
                   ),
                 ),
               ),
               TextButton(
                 onPressed: () => ref.invalidate(portfolioProvider),
-                child: const Text('Retry'),
+                child: const Text('Retry', style: TextStyle(fontSize: 12)),
               ),
             ],
           ),
@@ -432,16 +452,20 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _heroCard(
-    BuildContext context, {
-    required Widget child,
-  }) {
+  Widget _heroCard(BuildContext context, {required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            context.colorScheme.surfaceContainerHighest,
+            context.colorScheme.surface,
+          ],
+        ),
         border: Border.all(
           color: context.colorScheme.primary.withValues(alpha: 0.25),
         ),
@@ -456,123 +480,100 @@ class DashboardScreen extends ConsumerWidget {
       children: [
         Text(
           'Your Portfolio',
-          style: context.textTheme.titleMedium?.copyWith(
+          style: context.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
           'Track your DSE investments here.',
           style: context.textTheme.bodySmall?.copyWith(
+            fontSize: 12,
             color: context.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         ElevatedButton.icon(
           onPressed: () => sheets.addPurchase(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Add your first purchase'),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Add your first purchase',
+              style: TextStyle(fontSize: 13)),
         ),
       ],
     );
   }
 
-  Widget _holdingQuickAction(
+  /// One row of circular Add/Sell buttons — one pair per holding
+  /// (first two active holdings), matching the template layout.
+  Widget _holdingsActionsRow(
     BuildContext context,
     PortfolioSheets sheets,
-    Map<String, dynamic> t,
+    List<Map<String, dynamic>> active,
   ) {
-    final symbol = t['symbol']?.toString() ?? '?';
-    final name = t['name']?.toString() ?? '';
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: context.colorScheme.primary.withValues(alpha: 0.15),
-            child: Text(
-              symbol.length >= 2
-                  ? symbol.substring(0, 2).toUpperCase()
-                  : symbol,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: context.colorScheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
+    return Row(
+      children: [
+        for (final t in active.take(2))
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  symbol,
-                  style: context.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                _circleAction(
+                  context,
+                  icon: Icons.add,
+                  label: 'Add',
+                  onTap: () => sheets.addPurchase(
+                    context,
+                    preselectedSymbol: t['symbol']?.toString(),
                   ),
                 ),
-                if (name.isNotEmpty)
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: context.colorScheme.onSurface.withValues(alpha: 0.55),
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                _circleAction(
+                  context,
+                  icon: Icons.sell,
+                  label: 'Sell',
+                  onTap: () => sheets.sell(context, t),
+                ),
               ],
             ),
           ),
-          _quickActionButton(
-            context,
-            icon: Icons.add,
-            label: 'Add',
-            color: Colors.green,
-            onTap: () =>
-                sheets.addPurchase(context, preselectedSymbol: symbol),
-          ),
-          const SizedBox(width: 14),
-          _quickActionButton(
-            context,
-            icon: Icons.sell,
-            label: 'Sell',
-            color: Colors.red,
-            onTap: () => sheets.sell(context, t),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
-  Widget _quickActionButton(
+  Widget _circleAction(
     BuildContext context, {
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(26),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
-              border: Border.all(color: color.withValues(alpha: 0.3)),
+              color: context.colorScheme.onSurface.withValues(alpha: 0.07),
+              border: Border.all(
+                color: context.colorScheme.onSurface.withValues(alpha: 0.15),
+              ),
             ),
-            child: Icon(icon, size: 20, color: color),
+            child: Icon(
+              icon,
+              size: 22,
+              color: context.colorScheme.onSurface.withValues(alpha: 0.9),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: context.textTheme.labelSmall?.copyWith(
+              fontSize: 10,
+              color: context.colorScheme.onSurface.withValues(alpha: 0.7),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -587,38 +588,26 @@ class DashboardScreen extends ConsumerWidget {
     return Row(
       children: [
         Expanded(
-          child: _upDownCard(
-            context,
-            up: true,
-            count: dashboard.totalGainers,
-          ),
+          child: _upDownCard(context, up: true, count: dashboard.totalGainers),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
-          child: _upDownCard(
-            context,
-            up: false,
-            count: dashboard.totalLosers,
-          ),
+          child: _upDownCard(context, up: false, count: dashboard.totalLosers),
         ),
       ],
     );
   }
 
-  Widget _upDownCard(
-    BuildContext context, {
-    required bool up,
-    required int count,
-  }) {
+  Widget _upDownCard(BuildContext context, {required bool up, required int count}) {
     final color = up ? Colors.green : Colors.red;
     return Card(
-      elevation: 2,
+      elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -626,36 +615,35 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 Text(
                   up ? 'Stocks Up' : 'Stocks Down',
-                  style: context.textTheme.bodyMedium?.copyWith(
+                  style: context.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
+                    fontSize: 12,
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    up ? Icons.check : Icons.cancel,
-                    size: 14,
-                    color: color,
-                  ),
+                  child: Icon(up ? Icons.check : Icons.cancel,
+                      size: 11, color: color),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               '$count',
-              style: context.textTheme.titleLarge?.copyWith(
+              style: context.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               'today',
               style: context.textTheme.bodySmall?.copyWith(
-                color: context.colorScheme.onSurface.withValues(alpha: 0.55),
+                fontSize: 10,
+                color: context.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -667,60 +655,64 @@ class DashboardScreen extends ConsumerWidget {
   // ───────────────────────── Quick actions ─────────────────────────
 
   Widget _buildQuickActions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(
-          'Quick Actions',
-          style: context.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+        _quickTile(context, Icons.show_chart, 'All Stocks', Colors.blue,
+            () => context.go('/stocks')),
+        const SizedBox(width: 8),
+        _quickTile(context, Icons.compare_arrows, 'Compare', Colors.purple,
+            () => context.go('/compare')),
+        const SizedBox(width: 8),
+        _quickTile(context, Icons.insights, 'Analysis', Colors.green,
+            () => context.go('/analysis')),
+        const SizedBox(width: 8),
+        _quickTile(context, Icons.explore, 'KodaLens', const Color(0xFF10B981),
+            () => context.push('/kodalens')),
+      ],
+    );
+  }
+
+  Widget _quickTile(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Expanded(
+      child: Material(
+        color: context.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 17, color: color),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.labelSmall?.copyWith(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: QuickActionCard(
-                icon: Icons.show_chart,
-                label: 'All Stocks',
-                color: Colors.blue,
-                onTap: () => context.go('/stocks'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: QuickActionCard(
-                icon: Icons.compare_arrows,
-                label: 'Compare',
-                color: Colors.purple,
-                onTap: () => context.go('/compare'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: QuickActionCard(
-                icon: Icons.insights,
-                label: 'Analysis',
-                color: Colors.green,
-                onTap: () => context.go('/analysis'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: QuickActionCard(
-                icon: Icons.explore,
-                label: 'KodaLens',
-                color: const Color(0xFF10B981),
-                onTap: () => context.push('/kodalens'),
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
@@ -733,23 +725,22 @@ class DashboardScreen extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Market Summary',
-            style: context.textTheme.titleMedium?.copyWith(
+            style: context.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 12),
-          _summaryRow(context, 'Listed Stocks',
-              '${dashboard.totalStocks}'),
+          const SizedBox(height: 8),
+          _summaryRow(context, 'Listed Stocks', '${dashboard.totalStocks}'),
           if (topGainer != null)
             _summaryRow(
               context,
@@ -765,13 +756,10 @@ class DashboardScreen extends ConsumerWidget {
               valueColor: Colors.red,
             ),
           if (summary != null)
-            _summaryRow(
-              context,
-              'Total Volume',
-              Formatters.formatCompactNumber(summary.totalVolume),
-            ),
+            _summaryRow(context, 'Total Volume',
+                Formatters.formatCompactNumber(summary.totalVolume)),
           if (summary != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -797,19 +785,21 @@ class DashboardScreen extends ConsumerWidget {
   Widget _summaryRow(BuildContext context, String label, String value,
       {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Text(
             label,
-            style: context.textTheme.bodyMedium?.copyWith(
-              color: context.colorScheme.onSurface.withValues(alpha: 0.65),
+            style: context.textTheme.bodySmall?.copyWith(
+              fontSize: 12,
+              color: context.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const Spacer(),
           Text(
             value,
-            style: context.textTheme.bodyMedium?.copyWith(
+            style: context.textTheme.bodySmall?.copyWith(
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: valueColor,
             ),
@@ -819,12 +809,13 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _miniStat(BuildContext context, int count, String label, Color color) {
+  Widget _miniStat(
+      BuildContext context, int count, String label, Color color) {
     return Column(
       children: [
         Text(
           '$count',
-          style: context.textTheme.titleMedium?.copyWith(
+          style: context.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -832,7 +823,8 @@ class DashboardScreen extends ConsumerWidget {
         Text(
           label,
           style: context.textTheme.bodySmall?.copyWith(
-            color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 10,
+            color: context.colorScheme.onSurface.withValues(alpha: 0.55),
           ),
         ),
       ],
@@ -846,10 +838,10 @@ class DashboardScreen extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -858,7 +850,7 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               Text(
                 'Market Overview',
-                style: context.textTheme.titleMedium?.copyWith(
+                style: context.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -869,6 +861,7 @@ class DashboardScreen extends ConsumerWidget {
                 child: Text(
                   'View All →',
                   style: context.textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
                     color: context.colorScheme.primary,
                     fontWeight: FontWeight.w700,
                   ),
@@ -876,24 +869,28 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Header
           Row(
             children: [
               Expanded(flex: 5, child: _colHeader('Symbol')),
-              Expanded(flex: 4, child: _colHeader('Price', align: TextAlign.right)),
-              Expanded(flex: 4, child: _colHeader('Change', align: TextAlign.center)),
-              Expanded(flex: 3, child: _colHeader('Vol.', align: TextAlign.right)),
+              Expanded(flex: 4,
+                  child: _colHeader('Price', align: TextAlign.right)),
+              Expanded(flex: 4,
+                  child: _colHeader('Change', align: TextAlign.center)),
+              Expanded(flex: 3,
+                  child: _colHeader('Vol.', align: TextAlign.right)),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           if (rows.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 'No market data yet.',
                 textAlign: TextAlign.center,
                 style: context.textTheme.bodySmall?.copyWith(
+                  fontSize: 11,
                   color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
@@ -910,9 +907,9 @@ class DashboardScreen extends ConsumerWidget {
       text,
       textAlign: align,
       style: TextStyle(
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
+        letterSpacing: 0.4,
       ),
     );
   }
@@ -923,7 +920,7 @@ class DashboardScreen extends ConsumerWidget {
       onTap: () => context.push('/stock/${s.symbol}'),
       borderRadius: BorderRadius.circular(10),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
             Expanded(
@@ -933,7 +930,8 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Text(
                     s.symbol,
-                    style: context.textTheme.bodyMedium?.copyWith(
+                    style: context.textTheme.bodySmall?.copyWith(
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -942,9 +940,9 @@ class DashboardScreen extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.textTheme.bodySmall?.copyWith(
-                      color:
-                          context.colorScheme.onSurface.withValues(alpha: 0.5),
-                      fontSize: 11,
+                      fontSize: 9,
+                      color: context.colorScheme.onSurface
+                          .withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -956,9 +954,7 @@ class DashboardScreen extends ConsumerWidget {
                 alignment: Alignment.centerRight,
                 child: Text(
                   Formatters.formatCurrency(s.currentPrice),
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    fontSize: 13,
-                  ),
+                  style: context.textTheme.bodySmall?.copyWith(fontSize: 11),
                 ),
               ),
             ),
@@ -966,8 +962,8 @@ class DashboardScreen extends ConsumerWidget {
               flex: 4,
               child: Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
                     color: (positive ? Colors.green : Colors.red)
                         .withValues(alpha: 0.12),
@@ -977,7 +973,7 @@ class DashboardScreen extends ConsumerWidget {
                     Formatters.formatPercentage(s.changePercent),
                     style: TextStyle(
                       color: positive ? Colors.green : Colors.red,
-                      fontSize: 11,
+                      fontSize: 9,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -991,8 +987,9 @@ class DashboardScreen extends ConsumerWidget {
                 child: Text(
                   Formatters.formatCompactNumber(s.volume),
                   style: context.textTheme.bodySmall?.copyWith(
-                    color:
-                        context.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 10,
+                    color: context.colorScheme.onSurface
+                        .withValues(alpha: 0.55),
                   ),
                 ),
               ),
@@ -1030,15 +1027,16 @@ class _PortfolioValueState extends State<_PortfolioValue> {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context)
                 .textTheme
-                .headlineMedium
+                .titleLarge
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         IconButton(
           icon: Icon(
             _hidden ? Icons.visibility_off : Icons.visibility,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.5),
           ),
           onPressed: () => setState(() => _hidden = !_hidden),
           tooltip: _hidden ? 'Show value' : 'Hide value',
