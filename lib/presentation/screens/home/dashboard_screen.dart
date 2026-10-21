@@ -16,19 +16,32 @@ class DashboardScreen extends ConsumerWidget {
     final userAsync = ref.watch(userProvider);
 
     return Scaffold(
-      floatingActionButton: ExtendedFloatingActionButton(
-        onPressed: () => context.push('/kodalens'),
-        icon: const Icon(Icons.explore),
-        label: const Text(
-          'KODA LENS',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
+      floatingActionButton: Material(
+        elevation: 4,
+        color: const Color(0xFF10B981),
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => context.push('/kodalens'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.explore, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'KODA LENS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        backgroundColor: const Color(0xFF10B981),
-        foregroundColor: Colors.white,
-        elevation: 4,
       ),
       appBar: AppBar(
         title: Row(

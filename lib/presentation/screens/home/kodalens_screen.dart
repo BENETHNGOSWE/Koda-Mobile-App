@@ -73,6 +73,11 @@ class _KodaLensScreenState extends ConsumerState<KodaLensScreen> {
           _loading = false;
           _error = null;
         });
+      } else {
+        setState(() {
+          _loading = false;
+          _error = 'The live feed returned an unexpected response.';
+        });
       }
     } catch (e) {
       if (!mounted) return;

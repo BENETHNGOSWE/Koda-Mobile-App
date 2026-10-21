@@ -104,8 +104,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final visible = _visibleTransactions;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -122,12 +120,31 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           ),
         ],
       ),
-      floatingActionButton: ExtendedFloatingActionButton(
-        onPressed: () => _showAddPurchaseSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Purchase'),
-        backgroundColor: context.colorScheme.primary,
-        foregroundColor: context.colorScheme.onPrimary,
+      floatingActionButton: Material(
+        elevation: 4,
+        color: context.colorScheme.primary,
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => _showAddPurchaseSheet(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add, color: context.colorScheme.onPrimary),
+                const SizedBox(width: 8),
+                Text(
+                  'Add Purchase',
+                  style: TextStyle(
+                    color: context.colorScheme.onPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: _buildBody(),
     );
@@ -205,8 +222,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             onRefresh: _load,
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-              itemCount: visible.length,
-              itemBuilder: (context, index) => _buildTransactionTile(visible[index]),
+              itemCount: _visibleTransactions.length,
+              itemBuilder: (context, index) =>
+                  _buildTransactionTile(_visibleTransactions[index]),
             ),
           ),
         ),
