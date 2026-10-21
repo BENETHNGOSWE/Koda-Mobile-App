@@ -387,7 +387,7 @@ class DashboardScreen extends ConsumerWidget {
               if (active.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
-                  child: _holdingsActionsRow(context, sheets, active),
+                  child: _heroStatsRow(context, sheets, summary),
                 )
               else
                 Padding(
@@ -500,38 +500,84 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  /// One row of circular Add/Sell buttons — one pair per holding
-  /// (first two active holdings), evenly spread across the card,
-  /// matching the reference layout.
-  Widget _holdingsActionsRow(
+  /// Hero stats row: Total Invested / Total Gain-Loss chips + circular
+  /// Add button, matching the reference design.
+  Widget _heroStatsRow(
     BuildContext context,
     PortfolioSheets sheets,
-    List<Map<String, dynamic>> active,
+    Map<String, dynamic> summary,
   ) {
+    final invested = _num(summary['total_invested']);
+    final gainLoss = _num(summary['total_gain_loss']);
+    final positive = gainLoss >= 0;
+
     return Row(
       children: [
-        for (final t in active.take(2)) ...[
-          Expanded(
-            child: _circleAction(
-              context,
-              icon: Icons.add,
-              label: 'Add',
-              onTap: () => sheets.addPurchase(
-                context,
-                preselectedSymbol: t['symbol']?.toString(),
-              ),
+        Expanded(
+          child: _statChip(
+            context,
+            value: 'Tsh ${Formatters.formatNumberWithCommas(invested)}',
+            label: 'Total Invested',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _statChip(
+            context,
+            value:
+                '${positive ? '+' : '-'}Tsh ${Formatters.formatNumberWithCommas(gainLoss.abs())}',
+            label: 'Total Gain/Loss',
+            valueColor: positive ? Colors.green : Colors.red,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _circleAction(
+          context,
+          icon: Icons.add,
+          label: 'Add',
+          onTap: () => sheets.addPurchase(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _statChip(
+    BuildContext context, {
+    required String value,
+    required String label,
+    Color? valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: context.colorScheme.onSurface.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
             ),
           ),
-          Expanded(
-            child: _circleAction(
-              context,
-              icon: Icons.sell,
-              label: 'Sell',
-              onTap: () => sheets.sell(context, t),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textTheme.bodySmall?.copyWith(
+              fontSize: 9,
+              color: context.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 
@@ -1024,7 +1070,7 @@ class _PortfolioValueState extends State<_PortfolioValue> {
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
-                ?.copyWith(fontSize: 26, fontWeight: FontWeight.w600),
+                ?.copyWith(fontSize: 30, fontWeight: FontWeight.w600),
           ),
         ),
         IconButton(
