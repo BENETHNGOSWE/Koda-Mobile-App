@@ -661,14 +661,14 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     up ? Icons.arrow_upward : Icons.arrow_downward,
-                    size: 11,
+                    size: 16,
                     color: color,
                   ),
                 ),
@@ -682,7 +682,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             Text(
-              'today',
+              'Today',
               style: context.textTheme.bodySmall?.copyWith(
                 fontSize: 10,
                 color: context.colorScheme.onSurface.withValues(alpha: 0.5),
