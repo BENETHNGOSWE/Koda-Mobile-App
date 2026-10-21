@@ -95,7 +95,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ? (raw['data'] is Map ? raw['data']['stock'] : raw['stock'])
               : null;
           if (stockData is! Map) {
-            _stockError = 'Stock data not found for $symbol.';
+            _stockError = 'Stock data not found for ${widget.symbol}.';
           }
           _isLoadingStock = false;
         });
@@ -1468,7 +1468,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height, 8),
+          const SizedBox(height: 8),
           if (keyFactors.isEmpty)
             Text('No key factors available.', style: context.textTheme.bodyMedium)
           else
@@ -1488,7 +1488,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               title: Text(factor.toString()),
             ),
           )),
-          const SizedBox(height, 16),
+          const SizedBox(height: 16),
 
           // Risk Warnings
           if (riskWarnings.isNotEmpty) ...[

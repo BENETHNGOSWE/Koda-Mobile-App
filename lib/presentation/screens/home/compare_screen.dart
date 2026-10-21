@@ -1672,7 +1672,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
                 const SizedBox(height: 12),
                 ...greenFlags.map((signal) => _buildSignalCard(context, signal, Colors.green)),
                 const SizedBox(height: 20),
-              ]
+              ],
               if (redFlags.isNotEmpty) ...[
                 Row(
                   children: [

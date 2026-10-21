@@ -118,7 +118,7 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
 
                 // Recent Activity
-                _buildRecentActivity(context, dashboard),
+                _buildRecentActivity(context, ref, dashboard),
                 const SizedBox(height: 80),
               ],
             ),
@@ -691,7 +691,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecentActivity(BuildContext context, dynamic dashboard) {
+  Widget _buildRecentActivity(BuildContext context, WidgetRef ref, dynamic dashboard) {
     // Real activity from the backend (logins, stock views, simulations…).
     final activityAsync = ref.watch(activityProvider);
 

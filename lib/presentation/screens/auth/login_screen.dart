@@ -23,7 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _pinFocusNode = FocusNode();
 
   bool _rememberMe = false;
-  bool _showPin = false;
 
   @override
   void dispose() {

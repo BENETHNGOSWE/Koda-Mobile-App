@@ -396,7 +396,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   /// and whether they were annualised. Every metric on this page is for
   /// this period, so it must be stated explicitly.
   Widget _buildPeriodBanner(BuildContext context) {
-    final data = _analysisData as Map;
+    final data = _analysisData as Map<String, dynamic>;
     final description = _periodDescription(data);
     final marketPrice = _num(data['market_price']);
     final priceDate = data['price_date']?.toString() ?? '';
@@ -844,7 +844,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
 
     Map<String, dynamic> group(String key) {
       final value = metrics[key];
-      return value is Map ? value : const <String, dynamic>{};
+      return value is Map<String, dynamic> ? value : const <String, dynamic>{};
     }
 
     // The backend groups metrics differently per industry. There is NO
