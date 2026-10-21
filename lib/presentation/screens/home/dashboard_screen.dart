@@ -466,9 +466,6 @@ class DashboardScreen extends ConsumerWidget {
             context.colorScheme.surface,
           ],
         ),
-        border: Border.all(
-          color: context.colorScheme.primary.withValues(alpha: 0.25),
-        ),
       ),
       child: child,
     );
@@ -601,7 +598,6 @@ class DashboardScreen extends ConsumerWidget {
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -624,8 +620,11 @@ class DashboardScreen extends ConsumerWidget {
                     color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(up ? Icons.check : Icons.cancel,
-                      size: 11, color: color),
+                  child: Icon(
+                    up ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 11,
+                    color: color,
+                  ),
                 ),
               ],
             ),
@@ -654,16 +653,16 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildQuickActions(BuildContext context) {
     return Row(
       children: [
-        _quickTile(context, Icons.show_chart, 'All Stocks', Colors.blue,
+        _quickTile(context, Icons.wifi_tethering_rounded, 'All Stocks', Colors.blue,
             () => context.go('/stocks')),
         const SizedBox(width: 8),
         _quickTile(context, Icons.compare_arrows, 'Compare', Colors.purple,
             () => context.go('/compare')),
         const SizedBox(width: 8),
-        _quickTile(context, Icons.insights, 'Analysis', Colors.green,
+        _quickTile(context, Icons.analytics, 'Analysis', Colors.green,
             () => context.go('/analysis')),
         const SizedBox(width: 8),
-        _quickTile(context, Icons.explore, 'KodaLens', Colors.amber,
+        _quickTile(context, Icons.campaign_rounded, 'KodaLens', Colors.amber,
             () => context.push('/kodalens')),
       ],
     );
@@ -1025,7 +1024,7 @@ class _PortfolioValueState extends State<_PortfolioValue> {
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
-                ?.copyWith(fontWeight: FontWeight.bold),
+                ?.copyWith(fontSize: 26, fontWeight: FontWeight.w600),
           ),
         ),
         IconButton(

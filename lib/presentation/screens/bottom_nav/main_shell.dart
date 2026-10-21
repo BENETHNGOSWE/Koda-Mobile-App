@@ -19,7 +19,11 @@ class _MainShellState extends State<MainShell> {
       label: 'Dashboard',
       route: '/dashboard',
     ),
-    NavigationItem(icon: Icons.show_chart, label: 'Stocks', route: '/stocks'),
+    NavigationItem(
+      icon: Icons.wifi_tethering_rounded,
+      label: 'Stocks',
+      route: '/stocks',
+    ),
     NavigationItem(
       icon: Icons.account_balance_wallet,
       label: 'Portfolio',
