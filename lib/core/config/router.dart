@@ -1,5 +1,4 @@
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +16,8 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/notifications/notifications_screen.dart';
 import '../../presentation/screens/stocks/stock_detail_screen.dart';
 import '../../presentation/screens/alerts/price_alerts_screen.dart';
+import '../../presentation/screens/home/kodalens_screen.dart';
+import '../../presentation/screens/portfolio/portfolio_screen.dart';
 import 'dio_client.dart';
 
 // Global navigator key for interceptor navigation
@@ -131,6 +132,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // KodaLens — full-screen live market board (opened from the dashboard FAB)
+      GoRoute(
+        path: '/kodalens',
+        builder: (context, state) => const KodaLensScreen(),
+      ),
+
       // Protected Routes (Dashboard Shell)
       ShellRoute(
         builder: (context, state, child) {
@@ -147,6 +154,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/stocks',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: StocksScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/portfolio',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: PortfolioScreen(),
             ),
           ),
           GoRoute(

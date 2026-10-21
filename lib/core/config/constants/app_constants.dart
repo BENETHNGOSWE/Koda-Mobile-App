@@ -4,6 +4,13 @@ class AppConstants {
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
 
+  // KodaLens — the live DSE quote feed (Django) is served from the same
+  // host as the Laravel API, just without the /api prefix.
+  static String get kodaLensBase {
+    final uri = Uri.parse(baseUrl);
+    return uri.replace(path: '/').toString();
+  }
+
   // Storage Keys
   static const String isOnboardingCompleted = 'is_onboarding_completed';
   static const String themeMode = 'theme_mode';
@@ -50,6 +57,10 @@ class ApiEndpoints {
   static const String marketSummary = '/market/summary';
   static const String stocksStats = '/stocks/stats';
   static String userActivities(int limit) => '/user/activities?limit=$limit';
+
+  // Portfolio Endpoints
+  static const String portfolio = '/portfolio';
+  static String portfolioSell(int id) => '/portfolio/$id/sell';
 }
 
 class AppStrings {

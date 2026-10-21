@@ -21,6 +21,11 @@ class _MainShellState extends State<MainShell> {
     ),
     NavigationItem(icon: Icons.show_chart, label: 'Stocks', route: '/stocks'),
     NavigationItem(
+      icon: Icons.account_balance_wallet,
+      label: 'Portfolio',
+      route: '/portfolio',
+    ),
+    NavigationItem(
       icon: Icons.notifications_active, // ← New Price Alerts icon
       label: 'Alerts',
       route: '/alerts', // ← New route
