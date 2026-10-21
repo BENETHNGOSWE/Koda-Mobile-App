@@ -504,7 +504,8 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   /// One row of circular Add/Sell buttons — one pair per holding
-  /// (first two active holdings), matching the template layout.
+  /// (first two active holdings), evenly spread across the card,
+  /// matching the reference layout.
   Widget _holdingsActionsRow(
     BuildContext context,
     PortfolioSheets sheets,
@@ -512,30 +513,27 @@ class DashboardScreen extends ConsumerWidget {
   ) {
     return Row(
       children: [
-        for (final t in active.take(2))
+        for (final t in active.take(2)) ...[
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _circleAction(
-                  context,
-                  icon: Icons.add,
-                  label: 'Add',
-                  onTap: () => sheets.addPurchase(
-                    context,
-                    preselectedSymbol: t['symbol']?.toString(),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _circleAction(
-                  context,
-                  icon: Icons.sell,
-                  label: 'Sell',
-                  onTap: () => sheets.sell(context, t),
-                ),
-              ],
+            child: _circleAction(
+              context,
+              icon: Icons.add,
+              label: 'Add',
+              onTap: () => sheets.addPurchase(
+                context,
+                preselectedSymbol: t['symbol']?.toString(),
+              ),
             ),
           ),
+          Expanded(
+            child: _circleAction(
+              context,
+              icon: Icons.sell,
+              label: 'Sell',
+              onTap: () => sheets.sell(context, t),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -548,36 +546,35 @@ class DashboardScreen extends ConsumerWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(26),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: context.colorScheme.onSurface.withValues(alpha: 0.07),
-              border: Border.all(
-                color: context.colorScheme.onSurface.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(27),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.colorScheme.onSurface.withValues(alpha: 0.12),
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: context.colorScheme.onSurface.withValues(alpha: 0.92),
               ),
             ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: context.colorScheme.onSurface.withValues(alpha: 0.9),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: context.textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                color: context.colorScheme.onSurface.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: context.textTheme.labelSmall?.copyWith(
-              fontSize: 10,
-              color: context.colorScheme.onSurface.withValues(alpha: 0.7),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -666,7 +663,7 @@ class DashboardScreen extends ConsumerWidget {
         _quickTile(context, Icons.insights, 'Analysis', Colors.green,
             () => context.go('/analysis')),
         const SizedBox(width: 8),
-        _quickTile(context, Icons.explore, 'KodaLens', const Color(0xFF10B981),
+        _quickTile(context, Icons.explore, 'KodaLens', Colors.amber,
             () => context.push('/kodalens')),
       ],
     );
