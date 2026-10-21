@@ -90,6 +90,23 @@ final marketStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
+// Portfolio (real data from /portfolio — used by the Portfolio tab and the
+// dashboard hero card)
+// ─────────────────────────────────────────────────────────────────────────
+final portfolioProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final response = await dio.get(ApiEndpoints.portfolio);
+  final raw = response.data;
+  if (raw is Map && raw['data'] is Map) {
+    final data = raw['data'];
+    return data is Map<String, dynamic>
+        ? data
+        : data.cast<String, dynamic>();
+  }
+  return null;
+});
+
+// ─────────────────────────────────────────────────────────────────────────
 // User activity (real data from /user/activities — used by dashboard and
 // the notifications screen)
 // ─────────────────────────────────────────────────────────────────────────
