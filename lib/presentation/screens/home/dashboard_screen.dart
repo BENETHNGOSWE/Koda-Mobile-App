@@ -131,13 +131,13 @@ class DashboardScreen extends ConsumerWidget {
                 'Failed to load dashboard',
                 style: context.textTheme.titleMedium,
               ),
-              const SizedBox(height, 8),
+              const SizedBox(height: 8),
               Text(
                 error.toString(),
                 style: context.textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height, 16),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.invalidate(dashboardProvider),
                 child: const Text('Retry'),
@@ -212,14 +212,14 @@ class DashboardScreen extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height, 4),
+            const SizedBox(height: 4),
             Text(
               "Here's what's happening with your investments today.",
               style: context.textTheme.bodySmall?.copyWith(
                 color: context.colorScheme.onSurface.withValues(alpha: 0.65),
               ),
             ),
-            const SizedBox(height, 10),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Text(
@@ -343,9 +343,9 @@ class DashboardScreen extends ConsumerWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height, 6),
+              const SizedBox(height: 6),
               _PortfolioValue(value: totalValue),
-              const SizedBox(height, 2),
+              const SizedBox(height: 2),
               Row(
                 children: [
                   Icon(
@@ -353,7 +353,7 @@ class DashboardScreen extends ConsumerWidget {
                     size: 18,
                     color: gainColor,
                   ),
-                  const SizedBox(width, 4),
+                  const SizedBox(width: 4),
                   Text(
                     '${positive ? '+' : '-'}${Formatters.formatCurrency(gainLoss.abs())} '
                     '(${Formatters.formatPercentage(perfPercent)})',
@@ -366,7 +366,7 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
               if (active.isNotEmpty) ...[
-                const SizedBox(height, 12),
+                const SizedBox(height: 12),
                 ...active.take(2).map((t) => _holdingQuickAction(
                       context,
                       sheets,
@@ -383,7 +383,7 @@ class DashboardScreen extends ConsumerWidget {
                         color:
                             context.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
-                      const SizedBox(width, 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'No holdings yet — add your first purchase.',
@@ -460,14 +460,14 @@ class DashboardScreen extends ConsumerWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height, 8),
+        const SizedBox(height: 8),
         Text(
           'Track your DSE investments here.',
           style: context.textTheme.bodySmall?.copyWith(
             color: context.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
-        const SizedBox(height, 12),
+        const SizedBox(height: 12),
         ElevatedButton.icon(
           onPressed: () => sheets.addPurchase(context),
           icon: const Icon(Icons.add),
@@ -502,7 +502,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width, 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +533,7 @@ class DashboardScreen extends ConsumerWidget {
             onTap: () =>
                 sheets.addPurchase(context, preselectedSymbol: symbol),
           ),
-          const SizedBox(width, 14),
+          const SizedBox(width: 14),
           _quickActionButton(
             context,
             icon: Icons.sell,
@@ -569,7 +569,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             child: Icon(icon, size: 20, color: color),
           ),
-          const SizedBox(height, 4),
+          const SizedBox(height: 4),
           Text(
             label,
             style: context.textTheme.labelSmall?.copyWith(
@@ -593,7 +593,7 @@ class DashboardScreen extends ConsumerWidget {
             count: dashboard.totalGainers,
           ),
         ),
-        const SizedBox(width, 12),
+        const SizedBox(width: 12),
         Expanded(
           child: _upDownCard(
             context,
@@ -645,7 +645,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height, 8),
+            const SizedBox(height: 8),
             Text(
               '$count',
               style: context.textTheme.titleLarge?.copyWith(
@@ -676,7 +676,7 @@ class DashboardScreen extends ConsumerWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height, 12),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -687,7 +687,7 @@ class DashboardScreen extends ConsumerWidget {
                 onTap: () => context.go('/stocks'),
               ),
             ),
-            const SizedBox(width, 10),
+            const SizedBox(width: 10),
             Expanded(
               child: QuickActionCard(
                 icon: Icons.compare_arrows,
@@ -698,7 +698,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height, 10),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -709,7 +709,7 @@ class DashboardScreen extends ConsumerWidget {
                 onTap: () => context.go('/analysis'),
               ),
             ),
-            const SizedBox(width, 10),
+            const SizedBox(width: 10),
             Expanded(
               child: QuickActionCard(
                 icon: Icons.explore,
@@ -747,7 +747,7 @@ class DashboardScreen extends ConsumerWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height, 12),
+          const SizedBox(height: 12),
           _summaryRow(context, 'Listed Stocks',
               '${dashboard.totalStocks}'),
           if (topGainer != null)
@@ -771,7 +771,7 @@ class DashboardScreen extends ConsumerWidget {
               Formatters.formatCompactNumber(summary.totalVolume),
             ),
           if (summary != null) ...[
-            const SizedBox(height, 10),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -876,17 +876,17 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height, 12),
+          const SizedBox(height: 12),
           // Header
           Row(
             children: [
-              Expanded(flex: 5, child: Text(_colHeader('Symbol'))),
-              Expanded(flex: 4, child: Text(_colHeader('Price'), align: TextAlign.right)),
-              Expanded(flex: 4, child: Text(_colHeader('Change'), align: TextAlign.center)),
-              Expanded(flex: 3, child: Text(_colHeader('Vol.'), align: TextAlign.right)),
+              Expanded(flex: 5, child: _colHeader('Symbol')),
+              Expanded(flex: 4, child: _colHeader('Price', align: TextAlign.right)),
+              Expanded(flex: 4, child: _colHeader('Change', align: TextAlign.center)),
+              Expanded(flex: 3, child: _colHeader('Vol.', align: TextAlign.right)),
             ],
           ),
-          const SizedBox(height, 4),
+          const SizedBox(height: 4),
           if (rows.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
