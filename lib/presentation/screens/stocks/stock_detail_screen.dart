@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/config/dio_client.dart';
 import '../../../core/config/constants/app_constants.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../providers/app_providers.dart';
 
 class StockDetailScreen extends ConsumerStatefulWidget {
   final String symbol;
@@ -28,8 +30,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   bool _isLoadingPrices = true;
   bool _isLoadingSimulation = false;
 
-  String _selectedPeriod = '1 Month';
+  String _selectedPeriod = '1M';
   int _selectedDays = 30;
+  bool _inWatchlist = false;
 
   final TextEditingController _capitalController = TextEditingController(text: '100000');
   final TextEditingController _dateController = TextEditingController();
@@ -61,6 +64,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _inWatchlist =
+        ref.read(manageWatchlistProvider).isInWatchlist(widget.symbol);
     _fetchStockDetails();
     _fetchPriceData();
     _setDefaultDate();
@@ -236,15 +241,52 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     _fetchPriceData();
   }
 
+  Future<void> _toggleWatchlist() async {
+    final watchlist = ref.read(manageWatchlistProvider);
+    final ok = _inWatchlist
+        ? await watchlist.removeFromWatchlist(widget.symbol)
+        : await watchlist.addToWatchlist(widget.symbol);
+    if (!ok || !mounted) return;
+    setState(() => _inWatchlist = !_inWatchlist);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_inWatchlist
+            ? '$widget.symbol added to watchlist'
+            : '$widget.symbol removed from watchlist'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  /// Percent move over the currently selected period (first vs last close).
+  double? _periodReturn() {
+    final closes = _parsedCloses();
+    if (closes.length < 2) return null;
+    final first = closes.first;
+    if (first <= 0) return null;
+    return (closes.last - first) / first * 100;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.symbol),
+        title: const SizedBox.shrink(),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _inWatchlist ? Icons.star : Icons.star_border,
+              color: _inWatchlist ? Colors.amber : null,
+            ),
+            tooltip: 'Watchlist',
+            onPressed: _toggleWatchlist,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoadingStock
           ? const Center(child: CircularProgressIndicator())
@@ -282,15 +324,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 children: [
                   // Stock Header
                   _buildStockHeader(),
-                  const SizedBox(height: 24),
-
-                  // Period Selector
-                  _buildPeriodSelector(),
                   const SizedBox(height: 16),
 
-                  // Price Chart
+                  // Price Chart (period pills sit inside the card)
                   _buildPriceChart(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
                   // Trading Simulator
                   _buildTradingSimulator(),
@@ -314,271 +352,379 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     final isPositive = changePercent >= 0;
     final currentPrice = _num(stockData!['current_price']);
     final change = _num(stockData!['change']);
+    final changeColor = isPositive
+        ? const Color(AppColors.successColor)
+        : const Color(AppColors.errorColor);
+    final name = (stockData!['name'] ?? '').toString();
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              stockData!['name'] ?? widget.symbol,
-              style: context.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: Colors.white,
+          child: Text(
+            widget.symbol.length >= 2
+                ? widget.symbol.substring(0, 2).toUpperCase()
+                : widget.symbol,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.symbol,
+                style: context.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (name.isNotEmpty)
                 Text(
-                  currentPrice == null
-                      ? 'No price data'
-                      : 'TZS ${currentPrice.toStringAsFixed(2)}',
-                  style: context.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color:
+                        context.colorScheme.onSurface.withValues(alpha: 0.55),
                   ),
                 ),
-                if (change != null) ...[
-                  const SizedBox(width: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (isPositive
-                              ? const Color(AppColors.successColor)
-                              : const Color(AppColors.errorColor))
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${isPositive ? '+' : ''}${change.toStringAsFixed(2)} (${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%)',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: isPositive
-                            ? const Color(AppColors.successColor)
-                            : const Color(AppColors.errorColor),
-                        fontWeight: FontWeight.w600,
-                      ),
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              currentPrice == null
+                  ? '—'
+                  : 'TZS ${NumberFormat('#,##0.00').format(currentPrice)}',
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (change != null) ...[
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 14,
+                    color: changeColor,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${isPositive ? '+' : ''}${change.toStringAsFixed(2)} '
+                    '(${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: changeColor,
                     ),
                   ),
                 ],
-              ],
-            ),
+              ),
+            ],
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Select Period:',
-          style: context.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _buildPeriodButton('7 Days', 7),
-            _buildPeriodButton('1 Month', 30),
-            _buildPeriodButton('3 Months', 90),
-            _buildPeriodButton('6 Months', 180),
-            _buildPeriodButton('1 Year', 365),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Current View: $_selectedPeriod',
-          style: context.textTheme.bodyMedium?.copyWith(
-            color: context.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildPeriodButton(String label, int days) {
-    final isSelected = _selectedPeriod == label;
-    return ElevatedButton(
-      onPressed: () => _changePeriod(label, days),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected
-            ? context.colorScheme.primary
-            : context.colorScheme.surface,
-        foregroundColor: isSelected
-            ? Colors.white
-            : context.colorScheme.onSurface,
-        elevation: isSelected ? 2 : 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: isSelected
-                ? context.colorScheme.primary
-                : context.colorScheme.primary.withValues(alpha: 0.4),
-            width: isSelected ? 0 : 1.5,
-          ),
-        ),
+  /// Compact period pills (1D 1W 1M 3M 6M 1Y) + the period's return,
+  /// rendered inside the chart card below the chart.
+  Widget _buildPeriodPills() {
+    final periods = <String, int>{
+      '1D': 1,
+      '1W': 7,
+      '1M': 30,
+      '3M': 90,
+      '6M': 180,
+      '1Y': 365,
+    };
+    final periodReturn = _periodReturn();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
+      child: Row(
+        children: [
+          for (final entry in periods.entries)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () => _changePeriod(entry.key, entry.value),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _selectedPeriod == entry.key
+                        ? context.colorScheme.onSurface.withValues(alpha: 0.14)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    entry.key,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: _selectedPeriod == entry.key
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: _selectedPeriod == entry.key
+                          ? context.colorScheme.onSurface
+                          : context.colorScheme.onSurface
+                              .withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          const Spacer(),
+          if (periodReturn != null) ...[
+            Icon(
+              Icons.candlestick_chart,
+              size: 15,
+              color: periodReturn >= 0
+                  ? const Color(AppColors.successColor)
+                  : const Color(AppColors.errorColor),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${periodReturn >= 0 ? '+' : ''}${periodReturn.toStringAsFixed(1)}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: periodReturn >= 0
+                    ? const Color(AppColors.successColor)
+                    : const Color(AppColors.errorColor),
+              ),
+            ),
+          ],
+        ],
       ),
-      child: Text(label),
     );
   }
 
   Widget _buildPriceChart() {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    const chartHeight = 320.0;
+    const bottomAxis = 26.0;
+    const rightAxis = 46.0;
+    const lineColor = Color(0xFF22C55E);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Price Movement',
-              style: context.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _isLoadingPrices
-                ? const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : priceData.isEmpty
-                    ? const SizedBox(
-                        height: 200,
-                        child: Center(child: Text('No data available')),
-                      )
-                    : _parsedCloses().isEmpty
-                        ? const SizedBox(
-                            height: 200,
-                            child: Center(child: Text('No data available')),
-                          )
-                        : SizedBox(
-                        height: 300,
-                        child: LineChart(
-                          LineChartData(
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: true,
-                              horizontalInterval: 10,
-                              verticalInterval: 1,
-                              getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: context.colorScheme.onSurface.withValues(alpha: 0.1),
-                                  strokeWidth: 1,
-                                );
-                              },
-                              getDrawingVerticalLine: (value) {
-                                return FlLine(
-                                  color: context.colorScheme.onSurface.withValues(alpha: 0.1),
-                                  strokeWidth: 1,
-                                );
-                              },
-                            ),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 30,
-                                  interval: (priceData.length / 6).ceilToDouble(),
-                                  getTitlesWidget: (value, meta) {
-                                    if (value.toInt() >= 0 && value.toInt() < priceData.length) {
-                                      final date = priceData[value.toInt()]['date']?.toString() ?? '';
-                                      final parts = date.split('-');
-                                      if (parts.length == 3) {
-                                        return Padding(
-                                          padding: const EdgeInsets.only(top: 8),
-                                          child: Text(
-                                            '${parts[1]}/${parts[2]}',
-                                            style: context.textTheme.bodySmall,
-                                          ),
+      child: Column(
+        children: [
+          _isLoadingPrices
+              ? const SizedBox(
+                  height: 280,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : priceData.isEmpty || _parsedCloses().isEmpty
+                  ? SizedBox(
+                      height: 280,
+                      child: Center(
+                        child: Text(
+                          'No price data for this period',
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurface
+                                .withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Builder(
+                      builder: (context) {
+                        final closes = _parsedCloses();
+                        final min = closes.reduce((a, b) => a < b ? a : b);
+                        final max = closes.reduce((a, b) => a > b ? a : b);
+                        final range = (max - min) == 0
+                            ? (max * 0.02) + 1
+                            : max - min;
+                        final minY = min - range * 0.06;
+                        final maxY = max + range * 0.06;
+                        final last = closes.last;
+                        final plotH = chartHeight - bottomAxis;
+                        final rel = (last - minY) / (maxY - minY);
+                        final pointY = (1 - rel) * plotH;
+                        final pillTop =
+                            (pointY - 11).clamp(0.0, plotH - 22).toDouble();
+
+                        return SizedBox(
+                          height: chartHeight,
+                          child: Stack(
+                            children: [
+                              LineChart(
+                                LineChartData(
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    drawHorizontalLine: true,
+                                    horizontalInterval: (maxY - minY) / 4,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: context.colorScheme.onSurface
+                                            .withValues(alpha: 0.07),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    leftTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false),
+                                    ),
+                                    topTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: rightAxis,
+                                        interval: (maxY - minY) / 4,
+                                        getTitlesWidget: (value, meta) {
+                                          return Text(
+                                            NumberFormat('#,##0')
+                                                .format(value),
+                                            style: context.textTheme
+                                                .bodySmall
+                                                ?.copyWith(fontSize: 9),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: bottomAxis,
+                                        interval: (priceData.length / 6)
+                                            .ceilToDouble()
+                                            .clamp(1.0, 24.0),
+                                        getTitlesWidget: (value, meta) {
+                                          final i = value.toInt();
+                                          if (i < 0 || i >= priceData.length) {
+                                            return const Text('');
+                                          }
+                                          final date = priceData[i]['date']
+                                                  ?.toString() ??
+                                              '';
+                                          final parts = date.split('-');
+                                          if (parts.length == 3) {
+                                            try {
+                                              final dt = DateTime(
+                                                  int(parts[0]),
+                                                  int(parts[1]),
+                                                  int(parts[2]));
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 6),
+                                                child: Text(
+                                                  _selectedDays >= 90
+                                                      ? DateFormat('MMM')
+                                                          .format(dt)
+                                                      : DateFormat('d MMM')
+                                                          .format(dt),
+                                                  style: context.textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                          fontSize: 9),
+                                                ),
+                                              );
+                                            } catch (_) {
+                                              return const Text('');
+                                            }
+                                          }
+                                          return const Text('');
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  minX: 0,
+                                  maxX: (priceData.length - 1).toDouble(),
+                                  minY: minY,
+                                  maxY: maxY,
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: priceData
+                                              .asMap()
+                                              .entries
+                                              .where((entry) =>
+                                                  _num(entry.value['close']) !=
+                                                  null)
+                                              .map((entry) {
+                                        return FlSpot(
+                                          entry.key.toDouble(),
+                                          _num(entry.value['close'])!
+                                              .toDouble(),
                                         );
-                                      }
-                                    }
-                                    return const Text('');
-                                  },
+                                      }).toList(),
+                                      isCurved: true,
+                                      color: lineColor,
+                                      barWidth: 2.5,
+                                      isStrokeCapRound: true,
+                                      dotData: const FlDotData(show: false),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        color: lineColor
+                                            .withValues(alpha: 0.10),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  interval: 20,
-                                  reservedSize: 42,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      value.toInt().toString(),
-                                      style: context.textTheme.bodySmall,
-                                    );
-                                  },
+                              // Vertical guide at the last close
+                              Positioned(
+                                right: rightAxis + 0.5,
+                                top: pointY,
+                                height:
+                                    (plotH - pointY).clamp(0.0, plotH).toDouble(),
+                                width: 1,
+                                child: Container(
+                                  color: lineColor.withValues(alpha: 0.45),
                                 ),
                               ),
-                            ),
-                            borderData: FlBorderData(
-                              show: true,
-                              border: Border.all(
-                                color: context.colorScheme.onSurface.withValues(alpha: 0.1),
-                              ),
-                            ),
-                            minX: 0,
-                            maxX: (priceData.length - 1).toDouble(),
-                            minY: _getMinPrice() - 10,
-                            maxY: _getMaxPrice() + 10,
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: priceData
-                                        .asMap()
-                                        .entries
-                                        .where((entry) => _num(entry.value['close']) != null)
-                                        .map((entry) {
-                                  return FlSpot(
-                                    entry.key.toDouble(),
-                                    _num(entry.value['close'])!.toDouble(),
-                                  );
-                                }).toList(),
-                                isCurved: true,
-                                color: const Color(AppColors.primaryColor),
-                                barWidth: 3,
-                                isStrokeCapRound: true,
-                                dotData: const FlDotData(show: false),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: const Color(AppColors.primaryColor).withValues(alpha: 0.1),
+                              // Last-price pill on the right edge
+                              Positioned(
+                                right: rightAxis + 6,
+                                top: pillTop,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: lineColor,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    NumberFormat('#,##0').format(last),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-          ],
-        ),
+                        );
+                      },
+                    ),
+          _buildPeriodPills(),
+        ],
       ),
     );
   }
@@ -592,33 +738,62 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         .toList();
   }
 
-  double _getMinPrice() {
-    final closes = _parsedCloses();
-    if (closes.isEmpty) return 0;
-    return closes.reduce((a, b) => a < b ? a : b);
-  }
-
-  double _getMaxPrice() {
-    final closes = _parsedCloses();
-    if (closes.isEmpty) return 100;
-    return closes.reduce((a, b) => a > b ? a : b);
+  InputDecoration _fieldDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: context.colorScheme.surfaceContainerHighest,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: const Color(0xFF2563EB),
+          width: 1.5,
+        ),
+      ),
+    );
   }
 
   Widget _buildTradingSimulator() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.gps_fixed, color: Color(AppColors.errorColor)),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(AppColors.errorColor).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.robo,
+                  size: 18,
+                  color: Color(AppColors.errorColor),
+                ),
+              ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Professional Trading Simulator',
-                    style: context.textTheme.titleLarge?.copyWith(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -653,33 +828,36 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 );
               },
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoadingSimulation ? null : _runSimulation,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: context.colorScheme.primary.withValues(alpha: 0.5),
-                      width: 2,
-                    ),
-                  ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoadingSimulation ? null : _runSimulation,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 0,
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: _isLoadingSimulation
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Run Simulation'),
               ),
+              child: _isLoadingSimulation
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Run Simulation',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -698,9 +876,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         TextField(
           controller: _capitalController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: '100000',
-          ),
+          style: context.textTheme.bodyMedium,
+          decoration: _fieldDecoration().copyWith(hintText: '100000'),
         ),
       ],
     );
@@ -719,9 +896,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: _dateController,
-          decoration: const InputDecoration(
+          style: context.textTheme.bodyMedium,
+          decoration: _fieldDecoration().copyWith(
             hintText: 'mm/dd/yyyy',
-            suffixIcon: Icon(Icons.calendar_today),
+            suffixIcon: const Icon(Icons.calendar_today),
           ),
           readOnly: true,
           onTap: () async {
@@ -765,9 +943,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               setState(() => _selectedStrategy = value);
             }
           },
-          decoration: const InputDecoration(
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
+          decoration: _fieldDecoration(),
         ),
       ],
     );
