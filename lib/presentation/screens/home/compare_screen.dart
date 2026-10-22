@@ -127,6 +127,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
             Text('Compare Stocks'),
             Text(
               'Comprehensive technical and fundamental analysis side by side',
+              maxLines: 2,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],

@@ -90,6 +90,7 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
             Text('All Stocks'),
             Text(
               'Track and analyze DSE listed companies',
+              maxLines: 2,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],

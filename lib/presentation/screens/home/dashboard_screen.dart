@@ -62,11 +62,8 @@ class DashboardScreen extends ConsumerWidget {
               fit: BoxFit.contain,
             ),
             const SizedBox(width: 8),
-            Text(
+            const Text(
               'KodaStock',
-              style: context.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
             ),
           ],
         ),

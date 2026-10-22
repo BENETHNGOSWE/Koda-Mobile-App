@@ -172,7 +172,19 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Price Alert Manager')),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Price Alert Manager'),
+            Text(
+              'Set and manage your stock price alerts',
+              maxLines: 2,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
+      ),
       body: AmbientTopGlow(
         child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

@@ -116,11 +116,16 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Portfolio',
-          style: context.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Portfolio'),
+            Text(
+              'Track your DSE investments',
+              maxLines: 2,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            ),
+          ],
         ),
         actions: [
           IconButton(

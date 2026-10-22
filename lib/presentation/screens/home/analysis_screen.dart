@@ -82,6 +82,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             Text('Stock Investment Analysis'),
             Text(
               'Get actionable insights and predictions to make informed investment decisions',
+              maxLines: 2,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],

@@ -151,9 +151,10 @@ class LightTheme {
         foregroundColor: Color(0xFF1A1A1A),
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
+        toolbarHeight: 72,
         titleTextStyle: GoogleFonts.inter(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 21,
+          fontWeight: FontWeight.w700,
           color: Color(0xFF1A1A1A),
         ),
       ),
