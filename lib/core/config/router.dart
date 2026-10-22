@@ -111,12 +111,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfileScreen(),
       ),
 
-      GoRoute(
-        path: '/alerts',
-        name: 'alerts',
-        builder: (context, state) => const PriceAlertsScreen(),
-      ),
-
       // Notifications Route (Protected, but outside shell)
       GoRoute(
         path: '/notifications',
@@ -160,6 +154,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/portfolio',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: PortfolioScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/alerts',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: PriceAlertsScreen(),
             ),
           ),
           GoRoute(

@@ -300,28 +300,112 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: alerts.length,
-                separatorBuilder: (_, __) => const Divider(),
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final alert = alerts[index];
-                  return ListTile(
-                    title: Text('${alert['stock']?['symbol'] ?? 'N/A'}'),
-                    subtitle: Text(
-                      'TZS ${alert['target_price']} • ${alert['condition'] == 'above' ? '📈 Above' : '📉 Below'}',
+                  final symbol = '${alert['stock']?['symbol'] ?? 'N/A'}';
+                  final name = alert['stock']?['name']?.toString() ?? '';
+                  final status = alert['status']?.toString() ?? 'active';
+                  final isActive = status == 'active';
+                  final isTriggered = status == 'triggered';
+                  final statusColor = isTriggered
+                      ? Colors.amber
+                      : isActive
+                          ? Colors.green
+                          : Colors.grey;
+                  return Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    trailing: alert['status'] == 'active'
-                        ? TextButton(
-                            onPressed: () => _cancelAlert(alert['id']),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(color: Colors.red),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        symbol,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: context.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: statusColor
+                                            .withValues(alpha: 0.15),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        status.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (name.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        context.textTheme.bodySmall?.copyWith(
+                                      color: context.colorScheme.onSurface
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  'TZS ${alert['target_price']} • '
+                                  '${alert['condition'] == 'below' ? 'Below target' : 'Above target'}',
+                                  style: context.textTheme.bodySmall,
+                                ),
+                              ],
                             ),
-                          )
-                        : Chip(
-                            label: Text(alert['status'] ?? ''),
-                            backgroundColor: alert['status'] == 'triggered'
-                                ? Colors.amber[100]
-                                : Colors.grey[200],
                           ),
+                          const SizedBox(width: 8),
+                          PopupMenuButton<String>(
+                            tooltip: 'Actions',
+                            onSelected: (action) {
+                              if (action == 'cancel') {
+                                _cancelAlert(alert['id']);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'cancel',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.cancel_outlined, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('Cancel alert'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
