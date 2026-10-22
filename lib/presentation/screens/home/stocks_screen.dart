@@ -97,7 +97,7 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, size: 20),
+            icon: const Icon(Icons.notifications_active, size: 20),
             tooltip: 'Price alerts',
             onPressed: () => context.push('/alerts'),
           ),
