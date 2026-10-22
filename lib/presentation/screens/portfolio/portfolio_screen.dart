@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/ambient_top_glow.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/constants/app_constants.dart';
@@ -114,7 +115,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: Text(
           'Portfolio',
@@ -156,7 +156,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           ),
         ),
       ),
-      body: _buildBody(),
+      body: AmbientTopGlow(
+        child: _buildBody()
+      ),
     );
   }
 

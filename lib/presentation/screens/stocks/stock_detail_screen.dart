@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/ambient_top_glow.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -270,7 +271,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: const SizedBox.shrink(),
         leading: IconButton(
@@ -289,7 +289,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _isLoadingStock
+      body: AmbientTopGlow(
+        child: _isLoadingStock
           ? const Center(child: CircularProgressIndicator())
           : _stockError != null
               ? Center(
@@ -346,7 +347,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   ],
                 ],
               ),
-            ),
+            )
+      ),
     );
   }
 

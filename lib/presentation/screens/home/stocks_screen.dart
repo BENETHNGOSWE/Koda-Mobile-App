@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/ambient_top_glow.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/extensions.dart';
@@ -82,7 +83,6 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
     final stocksAsync = ref.watch(stocksListProvider(selectedSector));
 
     return Scaffold(
-      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,10 +179,12 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
           ),
         ),
       ),
-      body: stocksAsync.when(
+      body: AmbientTopGlow(
+        child: stocksAsync.when(
         data: (stocks) => _buildStocksList(context, stocks),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => _buildErrorState(context, error),
+      )
       ),
     );
   }

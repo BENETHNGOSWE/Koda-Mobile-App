@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/ambient_top_glow.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -119,7 +120,6 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +132,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
           ],
         ),
       ),
-      body: CustomScrollView(
+      body: AmbientTopGlow(
+        child: CustomScrollView(
         slivers: [
           // Header section (selection and compare button)
           SliverToBoxAdapter(
@@ -157,6 +158,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               ),
             ),
         ],
+      )
       ),
     );
   }

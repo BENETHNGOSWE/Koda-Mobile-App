@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/ambient_top_glow.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/dio_client.dart';
 import '../../../core/utils/extensions.dart';
@@ -171,9 +172,9 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(title: const Text('Price Alert Manager')),
-      body: SingleChildScrollView(
+      body: AmbientTopGlow(
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,6 +414,7 @@ class _PriceAlertsScreenState extends ConsumerState<PriceAlertsScreen> {
               ),
           ],
         ),
+      )
       ),
     );
   }
