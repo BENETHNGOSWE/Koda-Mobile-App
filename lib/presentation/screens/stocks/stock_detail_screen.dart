@@ -1105,50 +1105,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
 
     final predictions = _map(simulationData!['predictions']);
 
-    return DefaultTabController(
-      length: 4,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TabBar(
-            isScrollable: true,
-            labelColor: context.colorScheme.primary,
-            unselectedLabelColor: context.colorScheme.onSurface.withValues(alpha: 0.6),
-            indicatorColor: context.colorScheme.primary,
-            tabs: const [
-              Tab(text: 'Predictions'),
-              Tab(text: 'Technical'),
-              Tab(text: 'Signals'),
-              Tab(text: 'Best Strategy'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Use intrinsic height for tab content instead of fixed height
-          Builder(
-            builder: (context) {
-              final tabController = DefaultTabController.of(context);
-              return AnimatedBuilder(
-                animation: tabController,
-                builder: (context, child) {
-                  final index = tabController.index;
-                  switch (index) {
-                    case 0:
-                      return _buildPredictionsTab(predictions);
-                    case 1:
-                      return _buildTechnicalTab();
-                    case 2:
-                      return _buildSignalsTab();
-                    case 3:
-                      return _buildBestStrategyTab();
-                    default:
-                      return _buildPredictionsTab(predictions);
-                  }
-                },
-              );
-            },
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildPredictionsTab(predictions),
+        const SizedBox(height: 28),
+        _buildTechnicalTab(),
+        const SizedBox(height: 28),
+        _buildSignalsTab(),
+        const SizedBox(height: 28),
+        _buildBestStrategyTab(),
+      ],
     );
   }
 
@@ -1263,14 +1230,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: const Color(AppColors.warningColor).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               _str(prediction['recommendation'], ''),
-              style: context.textTheme.bodySmall?.copyWith(
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: const Color(AppColors.warningColor),
               ),
               textAlign: TextAlign.center,
@@ -1362,102 +1331,54 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Moving Averages
-          Card(
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
+          // Indicators
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Moving Averages',
-                    style: context.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Moving Averages',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 12),
-                  _buildTechnicalRow('SMA 20', _fmt(movingAverages['sma_20'])),
-                  _buildTechnicalRow('SMA 50', _fmt(movingAverages['sma_50'])),
-                  _buildTechnicalRow('EMA 12', _fmt(movingAverages['ema_12'])),
-                  _buildTechnicalRow('EMA 26', _fmt(movingAverages['ema_26'])),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Momentum
-          Card(
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Momentum Indicators',
-                    style: context.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                const SizedBox(height: 12),
+                _buildTechnicalRow('SMA 20', _fmt(movingAverages['sma_20'])),
+                _buildTechnicalRow('SMA 50', _fmt(movingAverages['sma_50'])),
+                _buildTechnicalRow('EMA 12', _fmt(movingAverages['ema_12'])),
+                _buildTechnicalRow('EMA 26', _fmt(movingAverages['ema_26'])),
+                _sectionDivider(),
+                Text(
+                  'Momentum Indicators',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 12),
-                  _buildTechnicalRow('RSI', '${_fmt(momentum['rsi'])} (${_str(momentum['rsi_signal'], 'n/a')})'),
-                  _buildTechnicalRow('MACD', '${_fmt(momentum['macd'])} (${_str(momentum['macd_signal'], 'n/a')})'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Support & Resistance
-          Card(
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Support & Resistance',
-                    style: context.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                const SizedBox(height: 12),
+                _buildTechnicalRow('RSI', '${_fmt(momentum['rsi'])} (${_str(momentum['rsi_signal'], 'n/a')})'),
+                _buildTechnicalRow('MACD', '${_fmt(momentum['macd'])} (${_str(momentum['macd_signal'], 'n/a')})'),
+                _sectionDivider(),
+                Text(
+                  'Support & Resistance',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 12),
-                  _buildTechnicalRow('Resistance 3', _fmt(supportResistance['resistance_3']), Colors.red),
-                  _buildTechnicalRow('Resistance 2', _fmt(supportResistance['resistance_2']), Colors.red),
-                  _buildTechnicalRow('Resistance 1', _fmt(supportResistance['resistance_1']), Colors.red),
-                  _buildTechnicalRow('Pivot', _fmt(supportResistance['pivot']), Colors.blue),
-                  _buildTechnicalRow('Support 1', _fmt(supportResistance['support_1']), Colors.green),
-                  _buildTechnicalRow('Support 2', _fmt(supportResistance['support_2']), Colors.green),
-                  _buildTechnicalRow('Support 3', _fmt(supportResistance['support_3']), Colors.green),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                _buildTechnicalRow('Resistance 3', _fmt(supportResistance['resistance_3']), Colors.red),
+                _buildTechnicalRow('Resistance 2', _fmt(supportResistance['resistance_2']), Colors.red),
+                _buildTechnicalRow('Resistance 1', _fmt(supportResistance['resistance_1']), Colors.red),
+                _buildTechnicalRow('Pivot', _fmt(supportResistance['pivot'])),
+                _buildTechnicalRow('Support 1', _fmt(supportResistance['support_1']), Colors.green),
+                _buildTechnicalRow('Support 2', _fmt(supportResistance['support_2']), Colors.green),
+                _buildTechnicalRow('Support 3', _fmt(supportResistance['support_3']), Colors.green),
+              ],
             ),
           ),
         ],
@@ -1483,6 +1404,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
+  Widget _sectionDivider() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 14),
+      height: 1,
+      color: context.colorScheme.onSurface.withValues(alpha: 0.08),
+    );
+  }
+
   Widget _buildSignalsTab() {
     if (simulationData is! Map) return const SizedBox();
 
@@ -1504,44 +1433,37 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const SizedBox(height: 16),
 
           // Overall Signal
-          Card(
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Overall Signal:',
-                    style: context.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Overall Signal',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getSignalColor(overall).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    overall.toUpperCase(),
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: _getSignalColor(overall),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _getSignalColor(overall).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _getSignalColor(overall)),
-                    ),
-                    child: Text(
-                      overall.toUpperCase(),
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: _getSignalColor(overall),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -1556,46 +1478,63 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ),
             )
           else
-            ...signalsList.map((signal) => Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-            ),
-            child: ListTile(
-              leading: Icon(
-                signal['type'] == 'bullish' ? Icons.trending_up : Icons.trending_down,
-                color: signal['type'] == 'bullish'
-                    ? const Color(AppColors.successColor)
-                    : const Color(AppColors.errorColor),
-              ),
-              title: Text(
-                _str(signal['indicator']),
-                style: context.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(_str(signal['message'], '')),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ...signalsList.map((signal) {
+              final isBullish = signal['type'] == 'bullish';
+              final message = _str(signal['message'], '');
+              final strength = _str(signal['strength'], 'weak');
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: _getStrengthColor(signal['strength']?.toString() ?? 'weak').withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: context.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Text(
-                  _str(signal['strength'], 'weak'),
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: _getStrengthColor(signal['strength']?.toString() ?? 'weak'),
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isBullish ? Icons.trending_up : Icons.trending_down,
+                      size: 20,
+                      color: isBullish
+                          ? const Color(AppColors.successColor)
+                          : const Color(AppColors.errorColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _str(signal['indicator']),
+                            style: context.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (message.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                message,
+                                style: context.textTheme.bodySmall?.copyWith(
+                                  color: context.colorScheme.onSurface
+                                      .withValues(alpha: 0.55),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strength,
+                      style: context.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: _getStrengthColor(strength),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          )),
+              );
+            }),
         ],
     );
   }
@@ -1613,6 +1552,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         : <dynamic>[];
     final expectedReturn = _num(primaryRec['expected_return']);
     final confidence = _num(primaryRec['confidence']);
+    final actionText = _str(primaryRec['action']);
+    final actionColor = _actionColor(actionText) ??
+        const Color(AppColors.primaryColor);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1626,41 +1568,35 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const SizedBox(height: 16),
 
           // Primary Recommendation
-          Card(
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(AppColors.primaryColor),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _str(primaryRec['action']),
-                      style: context.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: actionColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    actionText,
+                    style: context.textTheme.titleMedium?.copyWith(
+                      color: actionColor,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildStrategyRow('Holding Period', _str(primaryRec['holding_period'])),
-                  _buildStrategyRow('Expected Return', expectedReturn == null ? 'N/A' : '${expectedReturn.toStringAsFixed(2)}%'),
-                  _buildStrategyRow('Confidence', confidence == null ? 'N/A' : '${confidence.toStringAsFixed(0)}%'),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                _buildStrategyRow('Holding Period', _str(primaryRec['holding_period'])),
+                _buildStrategyRow('Expected Return', expectedReturn == null ? '—' : '${expectedReturn.toStringAsFixed(2)}%'),
+                _buildStrategyRow('Confidence', confidence == null ? '—' : '${confidence.toStringAsFixed(0)}%'),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -1676,22 +1612,23 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           if (keyFactors.isEmpty)
             Text('No key factors available.', style: context.textTheme.bodyMedium)
           else
-            ...keyFactors.map((factor) => Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: context.colorScheme.primary.withValues(alpha: 0.3),
-                width: 1.5,
+            ...keyFactors.map((factor) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: context.colorScheme.onSurface
+                    .withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.check_circle, color: Color(AppColors.successColor)),
-              title: Text(factor.toString()),
-            ),
-          )),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle,
+                      size: 18, color: Color(AppColors.successColor)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(factor.toString())),
+                ],
+              ),
+            )),
           const SizedBox(height: 16),
 
           // Risk Warnings
@@ -1703,20 +1640,21 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ...riskWarnings.map((warning) => Card(
+            ...riskWarnings.map((warning) => Container(
               margin: const EdgeInsets.only(bottom: 8),
-              elevation: 2,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
-              shape: RoundedRectangleBorder(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: context.colorScheme.onSurface
+                    .withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: context.colorScheme.primary.withValues(alpha: 0.3),
-                  width: 1.5,
-                ),
               ),
-              child: ListTile(
-                leading: const Icon(Icons.warning, color: Color(AppColors.warningColor)),
-                title: Text(warning.toString()),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning,
+                      size: 18, color: Color(AppColors.warningColor)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(warning.toString())),
+                ],
               ),
             )),
           ],
