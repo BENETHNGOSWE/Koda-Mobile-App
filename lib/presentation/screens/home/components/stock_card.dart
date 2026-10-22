@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:kodastock/core/utils/extensions.dart';
 import 'package:kodastock/core/utils/formatters.dart';
 import 'package:kodastock/domain/entities/stock_entity.dart';
@@ -15,8 +16,11 @@ class StockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isZero = stock.changePercent == 0;
     final isPositive = stock.changePercent >= 0;
-    final changeColor = isPositive ? Colors.green : Colors.red;
+    final changeColor = isZero
+        ? context.colorScheme.onSurface.withValues(alpha: 0.6)
+        : (isPositive ? Colors.green : Colors.red);
 
     return Card(
       elevation: 2,
@@ -105,27 +109,37 @@ class StockCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: changeColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: changeColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                            size: 16,
-                            color: changeColor,
-                          ),
-                          Text(
-                            '${isPositive ? '+' : ''}${stock.changePercent.toStringAsFixed(0)}',
-                            style: context.textTheme.labelSmall?.copyWith(
-                              color: changeColor,
-                              fontWeight: FontWeight.w600,
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!isZero) ...[
+                              Icon(
+                                isPositive
+                                    ? Icons.arrow_upward
+                                    : Icons.arrow_downward,
+                                size: 15,
+                                color: changeColor,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              '${isPositive ? '+' : ''}${stock.changePercent.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: changeColor,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -146,7 +160,7 @@ class StockCard extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          Icons.show_chart,
+                          Icons.rocket_outlined,
                           size: 14,
                           color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
@@ -174,7 +188,9 @@ class StockCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'N/A',
+                          stock.lastUpdated != null
+                              ? 'Updated ${DateFormat('MMM d, HH:mm').format(stock.lastUpdated!)}'
+                              : '—',
                           style: context.textTheme.bodySmall?.copyWith(
                             color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
