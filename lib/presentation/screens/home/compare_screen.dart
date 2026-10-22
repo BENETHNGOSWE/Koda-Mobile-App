@@ -483,7 +483,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
   Widget _buildTabBar(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      width: double.infinity,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: context.colorScheme.surfaceContainerHighest,
