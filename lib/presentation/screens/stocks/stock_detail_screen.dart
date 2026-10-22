@@ -782,7 +782,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
-                  Icons.robo,
+                  Icons.smart_toy,
                   size: 18,
                   color: Color(AppColors.errorColor),
                 ),
