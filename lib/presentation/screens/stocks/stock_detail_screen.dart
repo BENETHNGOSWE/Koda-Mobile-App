@@ -466,12 +466,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         children: [
           for (final entry in periods.entries)
             Padding(
-              padding: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.only(right: 5),
               child: GestureDetector(
                 onTap: () => _changePeriod(entry.key, entry.value),
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: _selectedPeriod == entry.key
                         ? context.colorScheme.onSurface.withValues(alpha: 0.14)
@@ -671,9 +671,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                                       spots: priceData
                                               .asMap()
                                               .entries
-                                              .where((entry) =>
-                                                  _num(entry.value['close']) !=
-                                                  null)
+                                              .where((entry) {
+                                                final v =
+                                                    _num(entry.value['close']);
+                                                return v != null && v > 0;
+                                              })
                                               .map((entry) {
                                         return FlSpot(
                                           entry.key.toDouble(),
@@ -740,10 +742,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   /// Close prices that could actually be parsed; rows with a missing or
   /// malformed close are skipped instead of crashing the chart.
   List<double> _parsedCloses() {
-    return priceData
-        .map((p) => _num(p['close']))
-        .whereType<double>()
-        .toList();
+    final out = <double>[];
+    for (final p in priceData) {
+      final v = _num(p['close']);
+      // Skip missing or zero/negative closes — junk rows that would
+      // spike the chart down to 0.
+      if (v != null && v > 0) out.add(v);
+    }
+    return out;
   }
 
   InputDecoration _fieldDecoration() {
