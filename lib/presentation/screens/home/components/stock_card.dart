@@ -23,18 +23,14 @@ class StockCard extends StatelessWidget {
         : (isPositive ? Colors.green : Colors.red);
 
     return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: changeColor.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

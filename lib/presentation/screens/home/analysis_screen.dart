@@ -109,10 +109,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -401,10 +398,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: context.cardDecoration(radius: 16),,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -557,10 +551,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -700,10 +691,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -952,10 +940,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: context.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: context.cardDecoration(radius: 16),,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -999,10 +984,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: context.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: context.cardDecoration(radius: 16),,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1118,10 +1100,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

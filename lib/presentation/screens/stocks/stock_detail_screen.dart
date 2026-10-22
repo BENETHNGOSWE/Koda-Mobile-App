@@ -458,10 +458,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Row(
         children: [
           for (final entry in periods.entries)
@@ -529,10 +526,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Column(
         children: [
           _isLoadingPrices
@@ -786,10 +780,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: context.cardDecoration(radius: 20),,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1163,10 +1154,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ? constraints.maxWidth
               : (constraints.maxWidth - 12) / 2,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: context.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: context.cardDecoration(radius: 16),,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1335,10 +1323,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(20),
-            ),
+            decoration: context.cardDecoration(radius: 20),,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1436,10 +1421,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(20),
-            ),
+            decoration: context.cardDecoration(radius: 20),,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1485,10 +1467,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: context.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                decoration: context.cardDecoration(radius: 14),,
                 child: Row(
                   children: [
                     Icon(
@@ -1571,10 +1550,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(20),
-            ),
+            decoration: context.cardDecoration(radius: 20),,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

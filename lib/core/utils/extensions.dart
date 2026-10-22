@@ -6,6 +6,26 @@ extension BuildContextExtensions on BuildContext {
   TextTheme get textTheme => Theme.of(this).textTheme;
   ColorScheme get colorScheme => Theme.of(this).colorScheme;
 
+  /// Card decoration that matches the dashboard's cards in both themes:
+  /// soft white with a gentle shadow in light mode, tonal dark in dark
+  /// mode. Use for all page-level cards so every page looks the same.
+  BoxDecoration cardDecoration({double radius = 20}) {
+    final dark = Theme.of(this).brightness == Brightness.dark;
+    return BoxDecoration(
+      color: dark ? colorScheme.surfaceContainerHighest : Colors.white,
+      borderRadius: BorderRadius.circular(radius),
+      boxShadow: dark
+          ? const []
+          : [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+    );
+  }
+
   // Media query shortcuts
   MediaQueryData get mediaQuery => MediaQuery.of(this);
   Size get screenSize => MediaQuery.of(this).size;
