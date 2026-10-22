@@ -7,22 +7,19 @@ extension BuildContextExtensions on BuildContext {
   ColorScheme get colorScheme => Theme.of(this).colorScheme;
 
   /// The same soft emerald ambient glow the dashboard has at the top of
-  /// the page. Light mode only — returns null in dark mode so dark
-  /// pages keep their plain tonal background.
-  BoxDecoration? get ambientTopGlow =>
-      Theme.of(this).brightness == Brightness.dark
-          ? null
-          : BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.3],
-                colors: [
-                  const Color(0xFF10B981).withValues(alpha: 0.12),
-                  const Color(0xFF10B981).withValues(alpha: 0.0),
-                ],
-              ),
-            );
+  /// the page. Works in both themes — in dark mode it adds the same
+  /// subtle green wash the dashboard already shows.
+  BoxDecoration get ambientTopGlow => BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.3],
+          colors: [
+            const Color(0xFF10B981).withValues(alpha: 0.12),
+            const Color(0xFF10B981).withValues(alpha: 0.0),
+          ],
+        ),
+      );
 
   /// Card decoration that matches the dashboard's cards in both themes:
   /// soft white with a gentle shadow in light mode, tonal dark in dark

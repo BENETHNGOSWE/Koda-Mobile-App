@@ -10,8 +10,9 @@ class AmbientTopGlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glow = context.ambientTopGlow;
-    if (glow == null) return child;
-    return DecoratedBox(decoration: glow, child: child);
+    return DecoratedBox(
+      decoration: context.ambientTopGlow,
+      child: child,
+    );
   }
 }
