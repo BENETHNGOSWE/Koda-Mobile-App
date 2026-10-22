@@ -114,6 +114,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: Text(
           'Portfolio',

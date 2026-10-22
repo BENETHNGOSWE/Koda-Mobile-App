@@ -119,6 +119,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

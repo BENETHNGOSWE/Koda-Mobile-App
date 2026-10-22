@@ -270,6 +270,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: const SizedBox.shrink(),
         leading: IconButton(

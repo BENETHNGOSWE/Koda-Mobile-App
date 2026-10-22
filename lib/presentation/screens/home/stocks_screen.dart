@@ -82,6 +82,7 @@ class _StocksScreenState extends ConsumerState<StocksScreen> {
     final stocksAsync = ref.watch(stocksListProvider(selectedSector));
 
     return Scaffold(
+      backgroundDecoration: context.ambientTopGlow,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
