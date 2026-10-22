@@ -356,20 +356,35 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        children: ['all', 'active', 'sold'].map((f) {
+        children: ['all', 'active', 'sold'].asMap().entries.map((e) {
+          final f = e.value;
           final selected = _filter == f;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(f.toUpperCase()),
-              selected: selected,
-              onSelected: (_) => setState(() => _filter = f),
-              labelStyle: TextStyle(
-                color: selected
-                    ? context.colorScheme.onPrimary
-                    : context.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _filter = f),
+              child: Container(
+                margin: EdgeInsets.only(right: e.key == 2 ? 0 : 8),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? context.colorScheme.onSurface.withValues(alpha: 0.14)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    f.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected
+                          ? context.colorScheme.onSurface
+                          : context.colorScheme.onSurface
+                              .withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
               ),
             ),
           );
