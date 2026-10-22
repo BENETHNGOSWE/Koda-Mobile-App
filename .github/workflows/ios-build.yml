@@ -44,10 +44,11 @@ jobs:
             cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
             cd build/ios/ipa
             ditto -c -k --keepParent Payload Runner.ipa
+            cd "$GITHUB_WORKSPACE"
           fi
           ls -la build/ios/ipa
           echo "### iOS build ready" >> "$GITHUB_STEP_SUMMARY"
-          echo "Download the **kodastock-ios-ipa** artifact, unzip it, and install \`Runner.ipa\` with [Sideloadly](https://sideloadly.io) or AltStore." >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the kodastock-ios-ipa artifact, unzip it, and install Runner.ipa with Sideloadly or AltStore." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
