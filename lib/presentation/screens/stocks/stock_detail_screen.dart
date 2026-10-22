@@ -625,9 +625,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                                           if (parts.length == 3) {
                                             try {
                                               final dt = DateTime(
-                                                  int(parts[0]),
-                                                  int(parts[1]),
-                                                  int(parts[2]));
+                                                  int.parse(parts[0]),
+                                                  int.parse(parts[1]),
+                                                  int.parse(parts[2]));
                                               return Padding(
                                                 padding: const EdgeInsets.only(
                                                     top: 6),
