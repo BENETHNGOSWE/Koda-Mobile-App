@@ -87,6 +87,13 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, size: 20),
+            tooltip: 'Price alerts',
+            onPressed: () => context.push('/alerts'),
+          ),
+        ],
       ),
       body: AmbientTopGlow(
         child: SingleChildScrollView(

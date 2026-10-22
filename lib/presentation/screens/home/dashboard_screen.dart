@@ -42,7 +42,8 @@ class DashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined, size: 20),
-            onPressed: () => context.push('/notifications'),
+            tooltip: 'Price alerts',
+            onPressed: () => context.push('/alerts'),
           ),
           IconButton(
             icon: Icon(

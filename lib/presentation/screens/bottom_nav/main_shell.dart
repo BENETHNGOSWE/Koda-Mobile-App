@@ -30,16 +30,6 @@ class _MainShellState extends State<MainShell> {
       route: '/portfolio',
     ),
     NavigationItem(
-      icon: Icons.notifications_active, // ← New Price Alerts icon
-      label: 'Alerts',
-      route: '/alerts', // ← New route
-    ),
-    NavigationItem(
-      icon: Icons.compare_arrows,
-      label: 'Compare',
-      route: '/compare',
-    ),
-    NavigationItem(
       icon: Icons.analytics,
       label: 'Analysis',
       route: '/analysis',

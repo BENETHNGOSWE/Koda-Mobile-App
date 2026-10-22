@@ -132,6 +132,13 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, size: 20),
+            tooltip: 'Price alerts',
+            onPressed: () => context.push('/alerts'),
+          ),
+        ],
       ),
       body: AmbientTopGlow(
         child: CustomScrollView(

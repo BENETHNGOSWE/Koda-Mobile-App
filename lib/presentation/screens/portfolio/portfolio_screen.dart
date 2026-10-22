@@ -129,6 +129,11 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.notifications_outlined, size: 20),
+            tooltip: 'Price alerts',
+            onPressed: () => context.push('/alerts'),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: _load,
