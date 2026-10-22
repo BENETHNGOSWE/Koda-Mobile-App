@@ -482,21 +482,41 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
   }
 
   Widget _buildTabBar(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return TabBar(
-      controller: _tabController,
-      isScrollable: true,
-      labelColor: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
-      unselectedLabelColor: Colors.grey,
-      indicatorColor: Theme.of(context).primaryColor,
-      tabs: const [
-        Tab(text: 'Overview'),
-        Tab(text: 'Technical Analysis'),
-        Tab(text: 'Fundamental Analysis'),
-        Tab(text: 'Predictions'),
-        Tab(text: 'Signals & Flags'),
-      ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        dividerColor: Colors.transparent,
+        labelColor: context.colorScheme.onSurface,
+        unselectedLabelColor:
+            context.colorScheme.onSurface.withValues(alpha: 0.5),
+        labelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        indicator: BoxDecoration(
+          color: context.colorScheme.onSurface.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        tabs: const [
+          Tab(text: 'Overview'),
+          Tab(text: 'Technical'),
+          Tab(text: 'Fundamental'),
+          Tab(text: 'Predictions'),
+          Tab(text: 'Signals'),
+        ],
+      ),
     );
   }
 
