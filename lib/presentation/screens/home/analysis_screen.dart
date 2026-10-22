@@ -107,15 +107,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   Widget _buildSelectionSection(BuildContext context) {
     final stocksAsync = ref.watch(stocksListProvider(null));
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -218,19 +214,19 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.orange.withValues(alpha: 0.3),
-                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.orange[700]),
+                    Icon(Icons.info_outline, color: Colors.orange),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'No financial data has been published for this stock '
                         'yet, so analysis is not available.',
-                        style: TextStyle(color: Colors.orange[900]),
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: context.colorScheme.onSurface
+                              .withValues(alpha: 0.8),
+                        ),
                       ),
                     ),
                   ],
@@ -406,11 +402,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-        ),
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,14 +411,13 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           Row(
             children: [
               Icon(Icons.calendar_today,
-                  size: 20, color: context.colorScheme.primary),
+                  size: 20, color: context.colorScheme.onSurface),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   description.isEmpty ? 'Reporting period' : description,
                   style: context.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: context.colorScheme.primary,
                   ),
                 ),
               ),
@@ -457,91 +449,65 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final maxScore = _num(recommendation['max_score']) ?? 100;
     final summary = recommendation['summary']?.toString() ?? '';
 
-    // Determine color based on action
-    Color gradientStart;
-    Color gradientEnd;
-    switch (action.toLowerCase()) {
-      case 'strong buy':
-        gradientStart = Colors.green[700]!;
-        gradientEnd = Colors.green[400]!;
-        break;
-      case 'buy':
-        gradientStart = Colors.green[600]!;
-        gradientEnd = Colors.green[300]!;
-        break;
-      case 'hold':
-        gradientStart = Colors.orange[600]!;
-        gradientEnd = Colors.orange[300]!;
-        break;
-      case 'sell':
-      case 'avoid':
-        gradientStart = Colors.red[600]!;
-        gradientEnd = Colors.red[300]!;
-        break;
-      default:
-        gradientStart = Colors.grey[600]!;
-        gradientEnd = Colors.grey[300]!;
-    }
+    // Color only where it is meaningful: the recommendation itself.
+    final actionColor = switch (action.toLowerCase()) {
+      'strong buy' || 'buy' => Colors.green,
+      'hold' => Colors.orange,
+      'sell' || 'avoid' => Colors.red,
+      _ => context.colorScheme.onSurface,
+    };
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [gradientStart, gradientEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: gradientStart.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'INVESTMENT RECOMMENDATION',
-            style: context.textTheme.labelLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+            style: TextStyle(
+              fontSize: 10,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: 0.45),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             action,
-            style: context.textTheme.displaySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+            style: context.textTheme.headlineMedium?.copyWith(
+              color: actionColor,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            summary,
-            style: context.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.95),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              summary,
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: context.colorScheme.onSurface
+                    .withValues(alpha: 0.7),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+          ],
+          const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: actionColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               'Score: ${score.toStringAsFixed(0)}/${maxScore.toStringAsFixed(0)}',
-              style: context.textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: actionColor,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -569,103 +535,131 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       return status.split('_').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ');
     }
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: Colors.green.withValues(alpha: 0.3),
-          width: 1,
-        ),
+    final statusColor = valuationStatus.contains('under')
+        ? Colors.green
+        : valuationStatus.contains('over')
+            ? Colors.red
+            : Colors.grey;
+    final mosNegative = marginOfSafety == null || marginOfSafety < 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.trending_up,
+                  size: 20, color: context.colorScheme.onSurface),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Valuation',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  formatStatus(valuationStatus),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Margin of safety — full-width block with a thin gauge bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.trending_up, color: context.colorScheme.primary),
-                const SizedBox(width: 12),
-                Text(
-                  'Stock Valuation',
-                  style: context.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Margin of Safety',
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.colorScheme.onSurface
+                            .withValues(alpha: 0.55),
+                      ),
+                    ),
+                    Text(
+                      _fmt(marginOfSafety, suffix: '%'),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: mosNegative ? Colors.red : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: marginOfSafety == null
+                        ? 0
+                        : (marginOfSafety.clamp(0.0, 100.0) / 100).toDouble(),
+                    minHeight: 4,
+                    backgroundColor: context.colorScheme.onSurface
+                        .withValues(alpha: 0.08),
+                    color: mosNegative ? Colors.red : Colors.green,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                    context, 'Market Price', _fmt(marketPrice, suffix: ' TZS')),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Valuation Status',
-                    style: context.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    formatStatus(valuationStatus),
-                    style: context.textTheme.headlineSmall?.copyWith(
-                      color: Colors.green[700],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricTile(context, 'Book Value / Share',
+                    _fmt(bookValue, suffix: ' TZS')),
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildMetricRow(context, 'Market Price', _fmt(marketPrice, suffix: ' TZS')),
-            Divider(),
-            _buildMetricRow(context, 'Book Value Per Share', _fmt(bookValue, suffix: ' TZS')),
-            Divider(),
-            _buildMetricRow(context, 'Graham Number (Max. Safe Value)', _fmt(grahamNumber, suffix: ' TZS')),
-            Divider(),
-            _buildMetricRow(context, 'Intrinsic Value (True Value)', _fmt(intrinsicValue, suffix: ' TZS')),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricTile(context, 'Graham Number',
+                    _fmt(grahamNumber, suffix: ' TZS')),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green[700], size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Margin of safety for value investing',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _fmt(marginOfSafety, suffix: '%'),
-                    style: context.textTheme.titleMedium?.copyWith(
-                      color: marginOfSafety == null || marginOfSafety < 0
-                          ? Colors.red[700]
-                          : Colors.green[700],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricTile(context, 'Intrinsic Value',
+                    _fmt(intrinsicValue, suffix: ' TZS')),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -683,113 +677,130 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final confidence = prediction['confidence']?.toString() ?? 'unknown';
     final timeframe = prediction['timeframe']?.toString() ?? '3-month';
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1,
-        ),
+    final changePositive = (expectedChangePercent ?? 0) >= 0;
+    final confLower = confidence.toLowerCase();
+    final confidenceColor = confLower.contains('high')
+        ? Colors.green
+        : confLower.contains('medium') || confLower.contains('moderate')
+            ? Colors.orange
+            : Colors.red;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.show_chart, color: context.colorScheme.primary),
-                const SizedBox(width: 12),
-                Text(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.show_chart,
+                  size: 20, color: context.colorScheme.onSurface),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
                   '$timeframe Price Prediction',
-                  style: context.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildPredictionItem(context, 'Conservative', _fmt(conservativePrice)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildPredictionItem(context, 'Expected', _fmt(predictedPrice), isPrimary: true),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildPredictionItem(context, 'Optimistic', _fmt(optimisticPrice)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: (expectedChangePercent ?? 0) >= 0
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'Expected Change',
-                    style: context.textTheme.labelMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    expectedChangePercent == null
-                        ? 'N/A'
-                        : '${expectedChangePercent >= 0 ? '+' : ''}${expectedChangePercent.toStringAsFixed(1)}%',
-                    style: context.textTheme.headlineMedium?.copyWith(
-                      color: (expectedChangePercent ?? 0) >= 0
-                          ? Colors.green[700]
-                          : Colors.red[700],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (expectedChange != null)
-                    Text(
-                      '(${expectedChange >= 0 ? '+' : ''}${expectedChange.toStringAsFixed(2)} TZS)',
-                      style: context.textTheme.bodySmall,
-                    ),
-                ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPredictionItem(
+                    context, 'Conservative', _fmt(conservativePrice)),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPredictionItem(context, 'Expected',
+                    _fmt(predictedPrice),
+                    isPrimary: true),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPredictionItem(
+                    context, 'Optimistic', _fmt(optimisticPrice)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
                 Text(
-                  'Prediction Confidence',
-                  style: context.textTheme.bodyMedium,
-                ),
-                Chip(
-                  label: Text(
-                    confidence.isEmpty
-                        ? 'Unknown'
-                        : confidence[0].toUpperCase() + confidence.substring(1),
-                  ),
-                  backgroundColor: Colors.green.withValues(alpha: 0.1),
-                  side: BorderSide(
-                    color: Colors.green.withValues(alpha: 0.2),
-                    width: 1,
-                  ),
-                  labelStyle: TextStyle(
-                    color: Colors.green[700],
-                    fontWeight: FontWeight.w600,
+                  'Expected Change',
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: context.colorScheme.onSurface
+                        .withValues(alpha: 0.55),
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  expectedChangePercent == null
+                      ? 'N/A'
+                      : '${changePositive ? '+' : ''}${expectedChangePercent.toStringAsFixed(1)}%',
+                  style: context.textTheme.headlineSmall?.copyWith(
+                    color: changePositive ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (expectedChange != null)
+                  Text(
+                    '(${expectedChange >= 0 ? '+' : ''}${expectedChange.toStringAsFixed(2)} TZS)',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colorScheme.onSurface
+                          .withValues(alpha: 0.55),
+                    ),
+                  ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Prediction Confidence',
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: context.colorScheme.onSurface
+                      .withValues(alpha: 0.7),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: confidenceColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  confidence.isEmpty
+                      ? 'Unknown'
+                      : confidence[0].toUpperCase() + confidence.substring(1),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: confidenceColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -798,35 +809,33 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: isPrimary
-            ? context.colorScheme.primary.withValues(alpha: 0.1)
-            : context.colorScheme.surfaceContainerHighest,
+        color: context.colorScheme.onSurface
+            .withValues(alpha: isPrimary ? 0.14 : 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPrimary
-              ? context.colorScheme.primary
-              : Colors.grey.withValues(alpha: 0.5),
-          width: isPrimary ? 2 : 1,
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
-            style: context.textTheme.labelSmall,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: isPrimary ? 0.7 : 0.5),
+            ),
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               value,
-              style: context.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: isPrimary ? context.colorScheme.primary : null,
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,
@@ -863,132 +872,203 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
 
     final healthScore = analysis is Map ? _num(analysis['health_score']) : null;
 
-    final metricItems = <Map<String, dynamic>>[
-      {'label': 'EPS', 'value': _fmt(perShare['eps']), 'color': Colors.blue},
-      {'label': 'P/E', 'value': _fmt(valuation['pe_ratio']), 'color': Colors.indigo},
-      {'label': 'P/B', 'value': _fmt(valuation['pb_ratio']), 'color': Colors.green},
-      {'label': 'PEG', 'value': _fmt(valuation['peg_ratio']), 'color': Colors.grey},
-      {'label': 'DY', 'value': _fmt(valuation['dividend_yield'], suffix: '%'), 'color': Colors.teal},
-      {'label': 'ROE', 'value': _fmt(profitability['roe'], suffix: '%'), 'color': Colors.blue},
-      {'label': 'ROA', 'value': _fmt(profitability['roa'], suffix: '%'), 'color': Colors.green},
+    // Related metrics grouped into their own containers.
+    final groups = <(String, List<(String, String)>)>[
+      (
+        'PER-SHARE & VALUATION',
+        [
+          ('EPS', _fmt(perShare['eps'])),
+          ('P/E', _fmt(valuation['pe_ratio'])),
+          ('P/B', _fmt(valuation['pb_ratio'])),
+          ('PEG', _fmt(valuation['peg_ratio'])),
+          ('DY', _fmt(valuation['dividend_yield'], suffix: '%')),
+        ],
+      ),
+      (
+        'PROFITABILITY',
+        [
+          ('ROE', _fmt(profitability['roe'], suffix: '%')),
+          ('ROA', _fmt(profitability['roa'], suffix: '%')),
+          if (isBanking)
+            ('NIM',
+                _fmt(profitability['net_interest_margin'], suffix: '%'))
+          else
+            ('NPM',
+                _fmt(profitability['net_profit_margin'], suffix: '%')),
+          if (isBanking)
+            ('NPL', _fmt(assetQuality['npl_ratio'], suffix: '%'))
+          else
+            ('GPM', _fmt(profitability['gross_profit_margin'], suffix: '%')),
+        ],
+      ),
+      (
+        isBanking ? 'CAPITAL & LIQUIDITY' : 'LIQUIDITY & LEVERAGE',
+        [
+          if (isBanking)
+            ('CAR', _fmt(capitalAdequacy['car'], suffix: '%'))
+          else
+            ('D/E', _fmt(leverage['debt_to_equity'])),
+          if (isBanking)
+            ('LDR', _fmt(liquidity['loan_to_deposit'], suffix: '%'))
+          else
+            ('CR', _fmt(liquidity['current_ratio'])),
+          if (!isBanking)
+            ('ICR', _fmt(leverage['interest_coverage'])),
+        ],
+      ),
     ];
 
-    if (isBanking) {
-      metricItems.addAll([
-        {'label': 'NIM', 'value': _fmt(profitability['net_interest_margin'], suffix: '%'), 'color': Colors.teal},
-        {'label': 'NPL', 'value': _fmt(assetQuality['npl_ratio'], suffix: '%'), 'color': Colors.red},
-        {'label': 'CAR', 'value': _fmt(capitalAdequacy['car'], suffix: '%'), 'color': Colors.purple},
-        {'label': 'LDR', 'value': _fmt(liquidity['loan_to_deposit'], suffix: '%'), 'color': Colors.orange},
-      ]);
-    } else {
-      metricItems.addAll([
-        {'label': 'NPM', 'value': _fmt(profitability['net_profit_margin'], suffix: '%'), 'color': Colors.teal},
-        {'label': 'GPM', 'value': _fmt(profitability['gross_profit_margin'], suffix: '%'), 'color': Colors.red},
-        {'label': 'D/E', 'value': _fmt(leverage['debt_to_equity']), 'color': Colors.pink},
-        {'label': 'CR', 'value': _fmt(liquidity['current_ratio']), 'color': Colors.red},
-        {'label': 'ICR', 'value': _fmt(leverage['interest_coverage']), 'color': Colors.orange},
-      ]);
-    }
+    final scoreColor = healthScore == null
+        ? Colors.grey
+        : healthScore >= 70
+            ? Colors.green
+            : healthScore >= 40
+                ? Colors.orange
+                : Colors.red;
 
-    metricItems.add({
-      'label': 'Score',
-      'value': healthScore == null ? 'N/A' : healthScore.toStringAsFixed(0),
-      'color': Colors.purple,
-    });
-
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.purple.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Key Financial Metrics',
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (final (title, items) in groups) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.analytics, color: context.colorScheme.primary),
-                const SizedBox(width: 12),
                 Text(
-                  'Key Financial Metrics',
-                  style: context.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    color: context.colorScheme.onSurface
+                        .withValues(alpha: 0.5),
                   ),
                 ),
+                const SizedBox(height: 10),
+                for (var i = 0; i < items.length; i += 2)
+                  Padding(
+                    padding: EdgeInsets.only(
+                        bottom: i + 2 < items.length ? 10 : 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricTile(
+                              context, items[i].$1, items[i].$2),
+                        ),
+                        if (i + 1 < items.length) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricTile(context,
+                                items[i + 1].$1, items[i + 1].$2),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 20),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                int crossAxisCount = constraints.maxWidth < 600 ? 2 : 3;
-                if (constraints.maxWidth > 900) crossAxisCount = 4;
-
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.4,
+          ),
+          const SizedBox(height: 12),
+        ],
+        // Financial Health — full-width container with a gauge bar
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: context.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'FINANCIAL HEALTH',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                      color: context.colorScheme.onSurface
+                          .withValues(alpha: 0.5),
+                    ),
                   ),
-                  itemCount: metricItems.length,
-                  itemBuilder: (context, index) {
-                    final item = metricItems[index];
-                    return _buildMetricChip(
-                      context,
-                      item['label'] as String,
-                      item['value'] as String,
-                      item['color'] as Color,
-                    );
-                  },
-                );
-              },
-            ),
-          ],
+                  Text(
+                    healthScore == null
+                        ? 'N/A'
+                        : '${healthScore.toStringAsFixed(0)}/100',
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: scoreColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: healthScore == null
+                      ? 0
+                      : (healthScore.clamp(0.0, 100.0) / 100).toDouble(),
+                  minHeight: 4,
+                  backgroundColor: context.colorScheme.onSurface
+                      .withValues(alpha: 0.08),
+                  color: scoreColor,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildMetricChip(BuildContext context, String label, String value, Color color) {
+  Widget _buildMetricTile(BuildContext context, String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: context.colorScheme.onSurface.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
-            style: context.textTheme.labelSmall?.copyWith(
-              color: color,
+            style: TextStyle(
+              fontSize: 10,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: 0.5),
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
-          const SizedBox(height: 4),
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                style: context.textTheme.titleMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -1023,94 +1103,68 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         ? (signals['red_flags'] is List ? signals['red_flags'] : <dynamic>[])
         : <dynamic>[];
 
-    return Column(
-      children: [
-        Card(
-          elevation: 2,
-          shadowColor: Colors.black.withValues(alpha: 0.1),
-          color: Colors.green.withValues(alpha: 0.05),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Colors.green.withValues(alpha: 0.3),
-              width: 1,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle, size: 20, color: Colors.green),
+              const SizedBox(width: 10),
+              Text(
+                'Positive Signals (${greenFlags.length})',
+                style: context.textTheme.titleSmall?.copyWith(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...greenFlags.whereType<Map<String, dynamic>>().map(
+            (flag) => _buildSignalItem(
+              context,
+              flag['title']?.toString() ?? '',
+              flag['description']?.toString() ?? '',
+              true,
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green[700]),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Positive Signals (${greenFlags.length})',
-                      style: context.textTheme.titleMedium?.copyWith(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            height: 1,
+            color: context.colorScheme.onSurface
+                .withValues(alpha: 0.08),
+          ),
+          Row(
+            children: [
+              Icon(Icons.warning, size: 20, color: Colors.red),
+              const SizedBox(width: 10),
+              Text(
+                'Warning Signals (${redFlags.length})',
+                style: context.textTheme.titleSmall?.copyWith(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 16),
-                ...greenFlags.whereType<Map<String, dynamic>>().map(
-                  (flag) => _buildSignalItem(
-                    context,
-                    flag['title']?.toString() ?? '',
-                    flag['description']?.toString() ?? '',
-                    true,
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...redFlags.whereType<Map<String, dynamic>>().map(
+            (flag) => _buildSignalItem(
+              context,
+              flag['title']?.toString() ?? '',
+              flag['description']?.toString() ?? '',
+              false,
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          elevation: 2,
-          shadowColor: Colors.black.withValues(alpha: 0.1),
-          color: Colors.red.withValues(alpha: 0.05),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Colors.red.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.red[700]),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Warning Signals (${redFlags.length})',
-                      style: context.textTheme.titleMedium?.copyWith(
-                        color: Colors.red[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ...redFlags.whereType<Map<String, dynamic>>().map(
-                  (flag) => _buildSignalItem(
-                    context,
-                    flag['title']?.toString() ?? '',
-                    flag['description']?.toString() ?? '',
-                    false,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1138,26 +1192,4 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     );
   }
 
-  Widget _buildMetricRow(BuildContext context, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: context.textTheme.bodyMedium?.copyWith(
-              color: context.colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-          ),
-          Text(
-            value,
-            style: context.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
