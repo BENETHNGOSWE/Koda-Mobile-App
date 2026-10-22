@@ -25,34 +25,6 @@ class DashboardScreen extends ConsumerWidget {
     final portfolioAsync = ref.watch(portfolioProvider);
 
     return Scaffold(
-      floatingActionButton: Material(
-        elevation: 4,
-        color: const Color(0xFF10B981),
-        borderRadius: BorderRadius.circular(28),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () => context.push('/kodalens'),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.explore, color: Colors.white, size: 18),
-                SizedBox(width: 6),
-                Text(
-                  'KODA LENS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
       appBar: AppBar(
         title: Row(
           children: [
