@@ -28,8 +28,25 @@ jobs:
           cd ios
           pod install --repo-update
 
-      - name: Build release IPA (unsigned - to be installed via Sideloadly/AltStore)
-        run: flutter build ipa --release --no-codesign
+      - name: Build release app (unsigned)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package IPA
+        run: |
+          set -e
+          echo "---- what the build produced ----"
+          find build/ios -maxdepth 3 | sort || true
+          if [ ! -f build/ios/ipa/Runner.ipa ]; then
+            echo "Packaging Runner.app into Runner.ipa (an IPA is a zipped Payload folder)"
+            mkdir -p build/ios/ipa/Payload
+            rm -rf build/ios/ipa/Payload/Runner.app
+            cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+            cd build/ios/ipa
+            zip -qr Runner.ipa Payload
+          fi
+          ls -la build/ios/ipa
+          echo "### iOS build ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the **kodastock-ios-ipa** artifact, unzip it, and install \`Runner.ipa\` with [Sideloadly](https://sideloadly.io) or AltStore." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
