@@ -449,19 +449,37 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final maxScore = _num(recommendation['max_score']) ?? 100;
     final summary = recommendation['summary']?.toString() ?? '';
 
-    // Color only where it is meaningful: the recommendation itself.
-    final actionColor = switch (action.toLowerCase()) {
-      'strong buy' || 'buy' => Colors.green,
-      'hold' => Colors.orange,
-      'sell' || 'avoid' => Colors.red,
-      _ => context.colorScheme.onSurface,
-    };
+    // The recommendation shows direction — always a colored box + word:
+    // green = buy, orange = hold, red = sell.
+    final actionLower = action.toLowerCase();
+    final Color actionColor;
+    final bool hasDirection;
+    switch (actionLower) {
+      case 'strong buy':
+      case 'buy':
+        actionColor = Colors.green;
+        hasDirection = true;
+        break;
+      case 'hold':
+        actionColor = Colors.orange;
+        hasDirection = true;
+        break;
+      case 'sell':
+      case 'avoid':
+        actionColor = Colors.red;
+        hasDirection = true;
+        break;
+      default:
+        actionColor = Colors.grey;
+        hasDirection = false;
+    }
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest,
+        color: actionColor
+            .withValues(alpha: hasDirection ? 0.10 : 0.06),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -479,9 +497,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            action,
-            style: context.textTheme.headlineMedium?.copyWith(
-              color: actionColor,
+            action.toUpperCase(),
+            style: context.textTheme.displaySmall?.copyWith(
+              color: hasDirection ? actionColor : context.colorScheme.onSurface,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -697,7 +715,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.show_chart,
+              Icon(Icons.trending_up,
                   size: 20, color: context.colorScheme.onSurface),
               const SizedBox(width: 10),
               Expanded(
