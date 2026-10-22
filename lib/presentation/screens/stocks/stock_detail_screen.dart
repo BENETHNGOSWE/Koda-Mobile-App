@@ -326,11 +326,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   _buildStockHeader(),
                   const SizedBox(height: 16),
 
-                  // Price Chart (period pills sit inside the card)
+                  // 1. Chart container
                   _buildPriceChart(),
+                  const SizedBox(height: 12),
+
+                  // 2. Timeline (period) container
+                  _buildPeriodPills(),
                   const SizedBox(height: 24),
 
-                  // Trading Simulator
+                  // 3. Trading Simulator
                   _buildTradingSimulator(),
                   const SizedBox(height: 32),
 
@@ -451,8 +455,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     };
     final periodReturn = _periodReturn();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         children: [
           for (final entry in periods.entries)
@@ -723,7 +732,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                         );
                       },
                     ),
-          _buildPeriodPills(),
         ],
       ),
     );
@@ -746,11 +754,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(
+          color: context.colorScheme.onSurface.withValues(alpha: 0.32),
+          width: 1,
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(
+          color: context.colorScheme.onSurface.withValues(alpha: 0.32),
+          width: 1,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
