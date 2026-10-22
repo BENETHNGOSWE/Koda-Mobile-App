@@ -163,7 +163,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
   Widget _buildSelectionSection(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -482,7 +482,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(4),
-      decoration: context.cardDecoration(radius: 14),,
+      decoration: context.cardDecoration(radius: 14),
       child: TabBar(
         controller: _tabController,
         isScrollable: true,
@@ -703,7 +703,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -819,7 +819,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -975,7 +975,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1059,7 +1059,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1239,7 +1239,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1361,7 +1361,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1455,7 +1455,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
   }) {
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1585,7 +1585,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

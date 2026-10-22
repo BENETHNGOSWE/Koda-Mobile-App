@@ -109,7 +109,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -398,7 +398,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: context.cardDecoration(radius: 16),,
+      decoration: context.cardDecoration(radius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -551,7 +551,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -691,7 +691,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -940,7 +940,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: context.cardDecoration(radius: 16),,
+            decoration: context.cardDecoration(radius: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -984,7 +984,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
-          decoration: context.cardDecoration(radius: 16),,
+          decoration: context.cardDecoration(radius: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1100,7 +1100,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: context.cardDecoration(radius: 20),,
+      decoration: context.cardDecoration(radius: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
