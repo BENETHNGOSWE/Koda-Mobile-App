@@ -449,37 +449,31 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final maxScore = _num(recommendation['max_score']) ?? 100;
     final summary = recommendation['summary']?.toString() ?? '';
 
-    // The recommendation shows direction — always a colored box + word:
-    // green = buy, orange = hold, red = sell.
+    // Judge by the DIRECTION of the recommendation, not the exact wording:
+    // anything with 'sell'/'avoid' → red, 'buy' → green,
+    // 'hold'/'wait'/'caution'/'neutral' → orange.
     final actionLower = action.toLowerCase();
-    final Color actionColor;
-    final bool hasDirection;
-    switch (actionLower) {
-      case 'strong buy':
-      case 'buy':
-        actionColor = Colors.green;
-        hasDirection = true;
-        break;
-      case 'hold':
-        actionColor = Colors.orange;
-        hasDirection = true;
-        break;
-      case 'sell':
-      case 'avoid':
-        actionColor = Colors.red;
-        hasDirection = true;
-        break;
-      default:
-        actionColor = Colors.grey;
-        hasDirection = false;
+    Color actionColor;
+    if (actionLower.contains('sell') || actionLower.contains('avoid')) {
+      actionColor = Colors.red;
+    } else if (actionLower.contains('buy')) {
+      actionColor = Colors.green;
+    } else if (actionLower.contains('hold') ||
+        actionLower.contains('wait') ||
+        actionLower.contains('caution') ||
+        actionLower.contains('neutral')) {
+      actionColor = Colors.orange;
+    } else {
+      actionColor = Colors.grey;
     }
+    final hasDirection = actionColor != Colors.grey;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: actionColor
-            .withValues(alpha: hasDirection ? 0.10 : 0.06),
+            .withValues(alpha: hasDirection ? 0.16 : 0.06),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
