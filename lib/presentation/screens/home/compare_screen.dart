@@ -161,15 +161,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
   }
 
   Widget _buildSelectionSection(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -690,16 +686,12 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
         statusColor = Colors.grey;
     }
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      margin: const EdgeInsets.only(bottom: 16, left: 8, right: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -724,7 +716,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
                       Text(
                         name,
                         style: context.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
+                          color: context.colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 2,
@@ -739,12 +731,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
+                color: statusColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: statusColor.withValues(alpha: 0.3),
-                  width: 1,
-                ),
               ),
               child: Text(
                 action,
@@ -766,7 +754,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
             Text(
               summary,
               style: context.textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
+                color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                 fontSize: 11,
               ),
               maxLines: 3,
@@ -818,15 +806,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
       return '${score.toStringAsFixed(0)}%\n${_healthRating(score)}';
     }
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -837,7 +821,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               'KEY METRICS',
               style: context.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+                color: context.colorScheme.onSurface.withValues(alpha: 0.55),
               ),
             ),
             const SizedBox(height: 20),
@@ -981,16 +965,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
 
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return Card(
-      color: Colors.grey[50],
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -999,7 +978,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
           children: [
             Row(
               children: [
-                Icon(Icons.bar_chart, color: Theme.of(context).primaryColor),
+                Icon(Icons.bar_chart, color: context.colorScheme.onSurface),
                 const SizedBox(width: 8),
                 Text(
                   'Detailed Analysis',
@@ -1058,7 +1037,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               Text(
                 description,
                 style: context.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                 ),
               ),
             ],
@@ -1073,15 +1052,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
     final symbolsWithSeries =
         _selectedSymbols.where((s) => !_seriesIsEmpty(s)).toList();
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -1260,15 +1235,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
       return '${gain == null ? 'N/A' : gain.toStringAsFixed(2)}%\nSuccess: ${success == null ? 'N/A' : success.toStringAsFixed(1)}%';
     }
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -1279,7 +1250,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               'TECHNICAL METRICS',
               style: context.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+                color: context.colorScheme.onSurface.withValues(alpha: 0.55),
               ),
             ),
             const SizedBox(height: 20),
@@ -1389,15 +1360,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
       return _fmt(valuation['margin_of_safety'], suffix: '%');
     }
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -1408,7 +1375,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               'FUNDAMENTAL METRICS',
               style: context.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+                color: context.colorScheme.onSurface.withValues(alpha: 0.55),
               ),
             ),
             const SizedBox(height: 20),
@@ -1490,15 +1457,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
     String? confidence,
     bool hasData = false,
   }) {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.4),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -1516,7 +1479,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               Text(
                 'Current Price',
                 style: context.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                 ),
               ),
               Text(
@@ -1529,7 +1492,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               Text(
                 '3-Month Target',
                 style: context.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                 ),
               ),
               Text(
@@ -1543,7 +1506,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               Text(
                 'Expected Change',
                 style: context.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                 ),
               ),
               Text(
@@ -1601,7 +1564,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Text(
                     'No prediction data available for this stock',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(color: context.colorScheme.onSurface.withValues(alpha: 0.55)),
                   ),
                 ),
               ),
@@ -1627,15 +1590,11 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
             .toList()
         : <Map<String, dynamic>>[];
 
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: context.colorScheme.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -1652,7 +1611,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
             if (greenFlags.isEmpty && redFlags.isEmpty) ...[
               Text(
                 'No signal data available for this stock',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: context.colorScheme.onSurface.withValues(alpha: 0.55)),
               ),
             ] else ...[
               if (greenFlags.isNotEmpty) ...[
@@ -1732,9 +1691,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: context.colorScheme.onSurface.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1747,7 +1705,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
               Text(
                 label,
                 style: context.textTheme.labelSmall?.copyWith(
-                  color: color,
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1757,7 +1715,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
           Text(
             stock,
             style: context.textTheme.titleLarge?.copyWith(
-              color: color,
+              color: context.colorScheme.onSurface,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -1796,12 +1754,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.5),
-          width: 1.5,
-        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
