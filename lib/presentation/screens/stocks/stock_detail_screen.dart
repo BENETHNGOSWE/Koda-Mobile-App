@@ -982,30 +982,31 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Investment Summary Cards - 2x2 Grid
+        // Investment Summary — flat 2x2 tiles
         Column(
           children: [
             Row(
               children: [
                 Expanded(
-                  child: _buildSummaryCard(
-                    'INVESTMENT',
+                  child: _buildSummaryTile(
+                    'Investment',
                     'TZS ${_formatNumber(investment['actual_investment'])}',
                     '${investment['shares']} shares',
-                    const Color(AppColors.primaryColor),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildSummaryCard(
-                    'CURRENT VALUE',
+                  child: _buildSummaryTile(
+                    'Current value',
                     'TZS ${_formatNumber(currentStatus['current_value'])}',
                     profitLossPercent == null
-                        ? 'N/A'
+                        ? '—'
                         : '${profitLossPercent >= 0 ? '+' : ''}${profitLossPercent.toStringAsFixed(2)}%',
-                    profitLossPercent == null || profitLossPercent >= 0
-                        ? const Color(AppColors.successColor)
-                        : const Color(AppColors.errorColor),
+                    profitLossPercent == null
+                        ? null
+                        : profitLossPercent >= 0
+                            ? const Color(AppColors.successColor)
+                            : const Color(AppColors.errorColor),
                   ),
                 ),
               ],
@@ -1014,20 +1015,19 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _buildSummaryCard(
-                    'RECOMMENDED ACTION',
+                  child: _buildSummaryTile(
+                    'Recommended action',
                     _str(primaryRec['action']),
                     _str(primaryRec['holding_period']),
-                    const Color(0xFF9C27B0),
+                    _actionColor(_str(primaryRec['action'])),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildSummaryCard(
-                    'MARKET SENTIMENT',
+                  child: _buildSummaryTile(
+                    'Market sentiment',
                     _str(marketSentiment['sentiment']),
                     'Score: ${_fmt(marketSentiment['sentiment_score'])}%',
-                    const Color(0xFFFFA726),
                   ),
                 ),
               ],
@@ -1042,45 +1042,62 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, String subtitle, Color color) {
+  Widget _buildSummaryTile(
+    String title,
+    String value,
+    String subtitle, [
+    Color? valueColor,
+  ]) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.6),
-          width: 2,
-        ),
+        color: context.colorScheme.onSurface.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
-            style: context.textTheme.bodySmall?.copyWith(
-              color: color,
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: 0.45),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             value,
-            style: context.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? context.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: context.textTheme.bodySmall?.copyWith(
-              color: context.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: context.colorScheme.onSurface
+                  .withValues(alpha: 0.55),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color? _actionColor(String action) {
+    final a = action.toLowerCase();
+    if (a.contains('buy')) return const Color(AppColors.successColor);
+    if (a.contains('sell')) return const Color(AppColors.errorColor);
+    return null;
   }
 
   Widget _buildPredictionsTabs() {
@@ -1180,11 +1197,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               : (constraints.maxWidth - 12) / 2,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: confidenceColor.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: confidenceColor.withValues(alpha: 0.3),
-            ),
+            color: context.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1203,19 +1217,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ),
               const SizedBox(width: 8),
               Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
+                child: Text(
+                  confidenceScore == null
+                      ? 'N/A'
+                      : '${confidenceScore.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                     color: confidenceColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    confidenceScore == null ? 'N/A' : '${confidenceScore.toStringAsFixed(0)}%',
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -1254,10 +1263,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(AppColors.warningColor).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
+              color: const Color(AppColors.warningColor).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               _str(prediction['recommendation'], ''),
